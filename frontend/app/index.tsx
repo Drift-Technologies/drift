@@ -17,7 +17,7 @@ const LoginScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <Image source={require('./path/to/logo.png')} style={styles.logo} />
+      <Image source={require('@/assets/images/logo.png')} style={styles.logo} />
       <Text style={styles.title}>Welcome Back!</Text>
       <TextInput
         style={styles.input}
