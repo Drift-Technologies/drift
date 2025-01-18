@@ -7,15 +7,17 @@ import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import VancouverMap from '@/components/organisms/VancouverMap'
+import { useLocalSearchParams } from 'expo-router';
 
 export default function HomeScreen() {
   const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0;
+  const { username } = useLocalSearchParams();
 
   return (
     <ScrollView>
       
       <ThemedView style={[styles.titleContainer, { paddingTop: statusBarHeight + 64 }]}>
-        <ThemedText type="title">Welcome User!</ThemedText>
+        <ThemedText type="title">Welcome {username}!</ThemedText>
         <HelloWave />
       </ThemedView>
 

@@ -9,7 +9,7 @@ const LoginScreen: React.FC = () => {
 
   const handleLogin = () => {
     if (username === 'Yibin' && password === 'pass') {
-      router.push('/(tabs)'); // Navigate to the tabs layout
+      router.push({ pathname: '/(tabs)', params: { username } }); // Navigate to the tabs layout
     } else {
       alert('Invalid credentials!');
     }
