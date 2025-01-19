@@ -58,4 +58,28 @@ export const deleteAllUsers = async (req: Request, res: Response) => {
       error: error instanceof Error ? error.message : 'Failed to delete users'
     });
   }
+};
+
+export const getUserByName = async (req: Request, res: Response) => {
+  try {
+    const { username } = req.params;
+    const user = await User.findOne({ name: username });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      user_id: user.user_id
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get user'
+    });
+  }
 }; 
