@@ -27,7 +27,7 @@ const LoginScreen: React.FC = () => {
       const user_id = data.data.user_id;
       if (data.success) {
         router.push({
-          pathname: '/(tabs)/payment',
+          pathname: '/(tabs)',
           params: { username, user_id }
         });
       } else {
