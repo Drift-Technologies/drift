@@ -1,7 +1,6 @@
 import mongoose from 'mongoose';
 
 const transactionSchema = new mongoose.Schema({
-  name: { type: String, required: true },
   user_id: { type: String, required: true },
   bus_route: { type: String, required: true },
   charge_amt: { type: Number, required: true },

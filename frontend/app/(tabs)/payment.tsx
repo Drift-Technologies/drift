@@ -1,18 +1,28 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, StyleSheet, Alert, ScrollView, RefreshControl } from 'react-native';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { useLocalSearchParams } from 'expo-router';
+import { RecentCharges } from '@/components/RecentCharges';
 
 export default function PaymentScreen() {
   const { username } = useLocalSearchParams();
   const { createToken } = useStripe();
   const [cardComplete, setCardComplete] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [key, setKey] = useState(0); // Add a key to force re-render of RecentCharges
 
   // Add this console.log to debug
   console.log('Payment Screen Username:', username);
   console.log('All params:', useLocalSearchParams());
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    // Force re-render of RecentCharges by updating its key
+    setKey(prevKey => prevKey + 1);
+    setRefreshing(false);
+  }, []);
 
   const handlePayPress = async () => {
     try {
@@ -24,16 +34,16 @@ export default function PaymentScreen() {
       }
 
       console.log('Username:', username); // Add this to debug
-      console.log('API URL:', `${process.env.EXPO_PUBLIC_API_URL}/api/users/${username}`);
+      console.log('API URL:', `${process.env.EXPO_PUBLIC_API_URL}/users/${username}`);
       
       // Get user_id first
-      const userResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/users/${username}`);
+      const userResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/${username}`);
       
       // Log the raw response
       console.log('Raw response:', await userResponse.text());
       
       // Reset the response stream for JSON parsing
-      const userData = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/users/${username}`).then(res => res.json());
+      const userData = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/${username}`).then(res => res.json());
       
       if (!userData.success) {
         Alert.alert('Error', 'Could not find user');
@@ -57,7 +67,7 @@ export default function PaymentScreen() {
       }
 
       // Send token with user_id
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/payments/create-customer`, {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/payments/create-customer`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -69,6 +79,12 @@ export default function PaymentScreen() {
       });
 
       console.log('Backend response:', await response.clone().text());
+
+      if (!response.ok) {
+        console.log('Error response:', await response.text());
+        Alert.alert('Error', 'Failed to create customer');
+        return;
+      }
 
       const data = await response.json();
       
@@ -84,8 +100,16 @@ export default function PaymentScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Add Payment Method</Text>
+    <ScrollView 
+      style={styles.container}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor="#333" // Color of the refresh spinner
+        />
+      }
+    >
       <View style={styles.card}>
         <CardField
           postalCodeEnabled={true}
@@ -106,7 +130,9 @@ export default function PaymentScreen() {
       >
         Save Card
       </Button>
-    </View>
+
+      <RecentCharges key={key} username={username as string} />
+    </ScrollView>
   );
 }
 
@@ -115,6 +141,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     backgroundColor: '#fff',
+    paddingTop: 60,
   },
   header: {
     fontSize: 24,
@@ -136,6 +163,6 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   button: {
-    marginTop: 20,
+    marginBottom: 20,
   },
 }); 
