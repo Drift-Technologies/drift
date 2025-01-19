@@ -15,7 +15,12 @@ export const processPayment = async (paymentDetails: PaymentRequest): Promise<bo
     });
 
     if (!response.ok) {
-      console.error('Payment failed:', await response.text());
+      const errorText = await response.text();
+      console.error('Payment failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText
+      });
       return false;
     }
 

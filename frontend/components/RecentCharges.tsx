@@ -38,7 +38,7 @@ export const RecentCharges: React.FC<RecentChargesProps> = ({ username }) => {
         console.log('Fetching transactions from:', `${process.env.EXPO_PUBLIC_API_URL}/transactions/${userData.user_id}`);
         const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/transactions/${userData.user_id}`);
         const responseText = await response.text();
-        console.log('Raw response:', responseText);
+        // console.log('Raw response:', responseText);
         
         try {
           const data = JSON.parse(responseText);
