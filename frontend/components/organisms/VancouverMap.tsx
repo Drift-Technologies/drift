@@ -5,24 +5,61 @@ import * as Location from 'expo-location';
 import { MapStyles } from '../styles/VancouverMap.styles';
 import route_shapes from '@/assets/shapes.json';
 import BusIcon from '@/components/atoms/BusIcon';
-import { loadRouteData } from '@/components/utils/route_utils';
+import { loadRouteData, calculateDistance } from '@/components/utils/route_utils';
 
 
-const VancouverMap: React.FC = () => {
-  const [location, setLocation] = useState<Location.LocationObjectCoords | null>(null);
+const VancouverMap: React.FC<{location: any; setLocation: any; busData:any; setBusData: any; closestRoutes: any; setClosestRoutes: any }> = ({
+  location,
+  setLocation,
+  busData,
+  setBusData,
+  closestRoutes,
+  setClosestRoutes,
+})  => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [routes, setRoutes] = useState<Record<number, Array<{ latitude: number; longitude: number; color: string }>> | null>(null);
-  const [busData, setBusData] = useState<Array<{ latitude: number; longitude: number; route_id: number }>>([]);
   const shapeColorMap = new Map(); 
 
+
+  // Initial Region is UBC
   const initialRegion: Region = {
-    latitude: location ? location.latitude : 49.2827,
-    longitude: location ? location.longitude : -123.1207,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
+    latitude: 49.26077,
+    longitude: -123.24899,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
   };
 
+  // CALCULATE CLOSEST ROUTES
+  useEffect(() => {
+    if (!location || !routes) return;
+  
+    // Calculate distances for all routes
+    const sortedRoutes = Object.entries(routes)
+      .map(([routeId, routeCoords]) => {
+        const minDistance = Math.min(
+          ...routeCoords.map((point) =>
+            calculateDistance(location.latitude, location.longitude, point.latitude, point.longitude)
+          )
+        );
+        return { routeId: parseInt(routeId, 10), distance: minDistance, color: routeCoords[0].color };
+      })
+      .sort((a, b) => a.distance - b.distance);
+  
+    // Use a Set to ensure uniqueness and extract only the closest two route IDs
+    const uniqueRouteIds = new Set();
+    const closestUniqueRoutes = sortedRoutes
+      .filter((route) => {
+        if (uniqueRouteIds.has(route.routeId)) return false; // Skip duplicates
+        uniqueRouteIds.add(route); // Add unique route ID
+        return true;
+      })
+      .slice(0, 4); // Take the two closest unique routes
+  
+    setClosestRoutes(closestUniqueRoutes.map((r) => r));
+  }, [location, routes]);
 
+
+  // STREAM BUS DATA
   useEffect(() => {
     const ws = new WebSocket('ws://localhost:8000/ws/simulated?speed_multiplier=2.0');
     
@@ -84,6 +121,7 @@ const VancouverMap: React.FC = () => {
   }, []);
 
 
+  // LOAD ROUTE DATA AND USER CURR LOCATION
   useEffect(() => {
     (async () => {
       // Request location permissions
@@ -93,8 +131,18 @@ const VancouverMap: React.FC = () => {
         return;
       }
 
+
       let currentLocation = await Location.getCurrentPositionAsync({});
-      setLocation(currentLocation.coords);
+      const hardcodedLocation = {
+        latitude: 49.26077,
+        longitude: -123.24899,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+  
+      // setLocation(currentLocation.coords);
+      setLocation(hardcodedLocation);
+      
       console.log(currentLocation);
       loadRouteData(shapeColorMap, setRoutes);
     })();
@@ -119,14 +167,18 @@ const VancouverMap: React.FC = () => {
           />
         )}
         {routes &&
-          Object.keys(routes).map((shapeId, index) => (
-            <Polyline
-              key={shapeId}
-              coordinates={routes[parseInt(shapeId)]}
-              strokeColor={routes[parseInt(shapeId)][0].color}
-              strokeWidth={3}
-            />
-          ))}
+          Object.keys(routes).map((routeId, index) => {
+            const isClosest = closestRoutes.includes(parseInt(routeId));
+          
+            return (
+              <Polyline
+                key={routeId}
+                coordinates={routes[parseInt(routeId)]}
+                strokeColor={isClosest ? routes[parseInt(routeId)][0].color : 'gray'}
+                strokeWidth={isClosest ? 6 : 2}
+              />
+            );
+          })}
         {routes && 
         busData.map((bus, index) => (
           <Marker
