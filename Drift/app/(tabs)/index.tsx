@@ -6,7 +6,7 @@ import { HelloWave } from '@/components/HelloWave';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import VancouverMap from '@/components/VancouverMap'
+import VancouverMap from '@/components/organisms/VancouverMap'
 
 export default function HomeScreen() {
   const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0;
