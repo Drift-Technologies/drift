@@ -16,8 +16,9 @@ export default function HomeScreen() {
   const { username, user_id } = useParams();
   const [location, setLocation] = useState<any>({});
   const [closestRoutes, setClosestRoutes] = useState<Array<{ latitude: number; longitude: number; routeId: number; color: string}>>([]);
-  const [busData, setBusData] = useState<Array<{ latitude: number; longitude: number; route_id: number }>>([]);
-  
+  const [busData, setBusData] = useState<Array<{ latitude: number; longitude: number; route_id: number; timestamp: string }>>([]);
+  const [onBus, setOnBus] = useState('');
+
   const [busesOnClosestRoutes, setBusesOnClosestRoutes] = useState<
     Array<{ routeId: number; color: string; buses: Array<{ latitude: number; longitude: number; route_id: number }> }>
   >([]);
@@ -54,24 +55,34 @@ export default function HomeScreen() {
           setClosestRoutes={setClosestRoutes}
           busData={busData}
           setBusData={setBusData}
+          onBus={onBus}
+          setOnBus={setOnBus}
           />
       </View>
 
       {/* Current Trip Section */}
       <View style={styles.currentTripContainer}>
         <Text style={styles.currentTripTitle}>Current Trip</Text>
-        <Text style={styles.currentTripText}>No active trips at the moment!</Text>
+        {onBus === '' ? (
+          <Text style={styles.currentTripText}>
+            No active trips at the moment!
+          </Text>
+        ) : (
+          <Text style={styles.currentTripText}>
+            Current Trip: {onBus}
+          </Text>
+        )}
       </View>
 
       {/* Closest Buses Section */}
       <View style={styles.closestBusesContainer}>
-        <Text style={styles.closestBusesTitle}>Closest Buses</Text>
+        <Text style={styles.closestBusesTitle}>Closest Bus Routes</Text>
         {busesOnClosestRoutes.length > 0 ? (
           <View style={styles.cardsContainer}>
             {busesOnClosestRoutes.map(({ routeId, color, buses }) => (
               <View key={routeId} style={[styles.card, { borderColor: color, borderWidth: 3 }]}>
                 <Text style={styles.cardTitle}>
-                  Route: {routeId} 
+                  Route: {busNames.find((bus) => Number(bus.shape_id) === routeId)?.trip_headsign.split(' ')[0] || 'Unknown'} 
                 </Text>
                 <Text style={styles.cardDistance}>
                   ({busNames.find((bus) => Number(bus.shape_id) === routeId)?.trip_headsign || 'Unknown'})

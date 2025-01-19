@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Fragment } from 'react';
 import { View } from 'react-native';
 import MapView, { Marker, Polyline, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
@@ -10,9 +10,10 @@ import { processPayment } from '@/components/utils/payment';
 import busNames from '@/assets/bus_names.json';
 
 
-
-const VancouverMap: React.FC<{user_id: any; location: any; setLocation: any; busData: Array<{ latitude: number; longitude: number; route_id: number }>; setBusData: any; closestRoutes: any; setClosestRoutes: any }> = ({
+const VancouverMap: React.FC<{user_id: any; onBus: string; setOnBus: any; location: any; setLocation: any; busData: Array<{ latitude: number; longitude: number; route_id: number; timestamp: string }>; setBusData: any; closestRoutes: any; setClosestRoutes: any }> = ({
   user_id,
+  onBus,
+  setOnBus,
   location,
   setLocation,
   busData,
@@ -34,8 +35,8 @@ const VancouverMap: React.FC<{user_id: any; location: any; setLocation: any; bus
 
   // Initial Region is UBC
   const initialRegion: Region = {
-    latitude: 49.26077,
-    longitude: -123.24899,
+    latitude: 49.27864232910038,
+    longitude: -123.12181381868528,
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
   };
@@ -72,27 +73,45 @@ const VancouverMap: React.FC<{user_id: any; location: any; setLocation: any; bus
 
   // STREAM BUS DATA
   useEffect(() => {
-    const ws = new WebSocket('ws://35.153.203.112:8080/ws/stream/buses?speed_multiplier=10.0');
+    const ws = new WebSocket('ws://35.153.203.112:8080/ws/stream/buses?speed_multiplier=5.0');
     
     // Create a Set to batch WebSocket messages
-    const busLocations = new Map<number, { latitude: number; longitude: number }>();
+    const busLocations = new Map<number, { latitude: number; longitude: number; timestamp: string }>();
     const data = new Set<string>();
 
     // Flush function to process batched messages
-    const flush = () => {
+    const flush = async () => {
       const newBusLocations = new Map(busLocations);
       
       for (const value of data) {
         const parsedData = JSON.parse(value);
         if (parsedData?.data) {
-          parsedData.data.forEach((bus: any) => {
+          // Use Promise.all with map instead of forEach
+          await Promise.all(parsedData.data.map(async (bus: any) => {
             newBusLocations.set(bus.route_id, {
               latitude: bus.latitude,
               longitude: bus.longitude,
+              timestamp: bus.timestamp
             });
-          });
+
+            if (bus.route_id === 293191 && bus.timestamp === '2025-01-12 09:01:28' && onBus === '') {
+              setOnBus(busNames.find((x) => Number(x.shape_id) === bus.route_id)?.trip_headsign || '49');
+
+              const makePayment = async () => {
+                const paymentResult = await processPayment({
+                  user_id: user_id,
+                  bus_route: busNames.find((x) => Number(x.shape_id) === 293191)?.trip_headsign || '25',
+                  charge_amt: 3.50
+                });
+                console.log(paymentResult ? 'Payment successful' : 'Payment failed');
+              };
+
+              await makePayment();
+            }
+          }));
         }
       }
+      
 
       const updatedBusPositions = Array.from(newBusLocations.entries()).map(([route_id, coords]) => ({
         route_id,
@@ -105,7 +124,7 @@ const VancouverMap: React.FC<{user_id: any; location: any; setLocation: any; bus
       data.clear(); // Clear the batch
     }
     
-    let timer = setInterval(flush, 1500);
+    let timer = setInterval(flush, 2000);
 
     ws.onopen = () => {
       console.log('Bus WebSocket connected');
@@ -172,7 +191,7 @@ const VancouverMap: React.FC<{user_id: any; location: any; setLocation: any; bus
     };
 
     // Flush function to process batched messages
-    const flush = async () => {
+    const flush_user = async () => {
       for (const value of data_person) {
         const parsedData = JSON.parse(value);
         if (parsedData?.data && parsedData.data.length > 0) {
@@ -210,27 +229,17 @@ const VancouverMap: React.FC<{user_id: any; location: any; setLocation: any; bus
               // console.log(res);
 
               const makePayment = async () => {
-                console.log({
-                  user_id: user_id,
-                  bus_route: busNames.find((x) => Number(x.shape_id) === 292250)?.trip_headsign || '49',
-                  charge_amt: 3.50
-                })
-                
                 const paymentResult = await processPayment({
                   user_id: user_id,
                   bus_route: busNames.find((x) => Number(x.shape_id) === 292250)?.trip_headsign || '49',
                   charge_amt: 3.50
                 });
-                if (paymentResult) {
-                  console.log('Payment successful');
-                } else {
-                  console.log('Payment failed');
-                }
+                console.log(paymentResult ? 'Payment successful' : 'Payment failed');
               };
 
-              if (!res.is_on_bus) {
-                await makePayment();
-              }
+              // if (!res.is_on_bus) {
+              //   await makePayment();
+              // }
 
               locationHistoryRef.current = [];
             }
@@ -249,7 +258,7 @@ const VancouverMap: React.FC<{user_id: any; location: any; setLocation: any; bus
       data_person.clear();
     }
     
-    let timer = setInterval(flush, 1500);
+    let timer = setInterval(flush_user, 1500);
 
     ws_person.onopen = () => {
       console.log('Person WebSocket connected');
@@ -275,11 +284,11 @@ const VancouverMap: React.FC<{user_id: any; location: any; setLocation: any; bus
     // Cleanup on component unmount
     return () => {
       clearInterval(timer);
-      if (locationHistoryRef.current.length > 0) {
+      if (locationHistoryRef.current.length > 100) {
         sendLocationsToAPI([...locationHistoryRef.current]);
       }
       ws_person.close(); 
-      flush(); 
+      flush_user(); 
       firstTimestampRef.current = null;
       lastLocationRef.current = null;  // Reset last location on cleanup
     };
@@ -321,15 +330,14 @@ const VancouverMap: React.FC<{user_id: any; location: any; setLocation: any; bus
         showsMyLocationButton
         showsUserLocation
       >
-        {location && (
-          <Marker
+         {onBus === '' && <Marker
             coordinate={{
-              latitude: location.latitude,
-              longitude: location.longitude,
+              latitude: 49.27864232910038,
+              longitude:  -123.12181381868528,
             }}
             title="You are here"
           />
-        )}
+        }
         {routes &&
           Object.keys(routes).map((routeId, index) => {
             const closestRoute = closestRoutes.find((route: any) => route.routeId === parseInt(routeId));
@@ -345,14 +353,18 @@ const VancouverMap: React.FC<{user_id: any; location: any; setLocation: any; bus
           })}
         {routes && 
         busData.map((bus, index) => (
-          <Marker
-            key={`bus-${bus.route_id}`}
-            coordinate={{ latitude: bus.latitude, longitude: bus.longitude }}
-            title={`Bus ID: ${busNames.find((x) => Number(x.shape_id) === bus.route_id)?.trip_headsign}`}
-          >
-            <BusIcon fillColor={routes[bus.route_id][0].color || 'black'} />
-          </Marker>
-        ))}
+              <Marker
+                key={`bus-${bus.route_id}-${bus.timestamp}`}
+                coordinate={{ latitude: bus.latitude, longitude: bus.longitude }}
+                title={
+                  bus.route_id === 293191 && bus.timestamp > '2025-01-12 09:01:28'
+                    ? 'You are here'
+                    : `Bus ID ${bus.route_id}: ${busNames.find((x) => Number(x.shape_id) === bus.route_id)?.trip_headsign || ''} ${bus.timestamp}`
+                }
+              >
+                <BusIcon fillColor={routes[bus.route_id][0].color || 'black'} />
+              </Marker>
+          ))}
       </MapView>
     </View>
   );
