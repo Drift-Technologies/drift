@@ -52,43 +52,50 @@ export const createCustomer = async (req: Request, res: Response) => {
   
 export const processPayment = async (req: Request, res: Response) => {
   try {
-    const { name, user_id, bus_route, charge_amt } = req.body;
+    const { user_id, bus_route, charge_amt } = req.body;
 
     // Validate input
-    if (!name || !user_id || !bus_route || !charge_amt) {
+    if (!user_id || !bus_route || !charge_amt) {
       return res.status(400).json({
         success: false,
         error: 'Missing required fields'
       });
     }
 
-    // Create a PaymentIntent
+    // Get customer_id from UserPaymentDetails
+    const userPaymentDetails = await UserPaymentDetails.findOne({ user_id });
+    if (!userPaymentDetails) {
+      return res.status(404).json({
+        success: false,
+        error: 'No payment method found for this user'
+      });
+    }
+
+    // Create a payment intent with the customer
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(charge_amt * 100), // Convert to cents
       currency: 'cad',
-      automatic_payment_methods: {
-        enabled: true,
-        allow_redirects: 'never'
-      },
+      customer: userPaymentDetails.customer_id,
+      payment_method_types: ['card'],
+      confirm: true,
+      off_session: true,
       description: `Bus fare for route ${bus_route}`
     });
 
     // Create transaction record
     const transaction = new Transaction({
-      name,
       user_id,
       bus_route,
       charge_amt,
       transaction_id: uuidv4(),
-      stripe_payment_id: paymentIntent.id
+      stripe_payment_id: paymentIntent.id,
+      timestamp: new Date()
     });
 
     await transaction.save();
 
-    // Return client secret for frontend to complete payment
     res.status(200).json({
       success: true,
-      clientSecret: paymentIntent.client_secret,
       transaction_id: transaction.transaction_id,
       stripe_payment_id: paymentIntent.id
     });
