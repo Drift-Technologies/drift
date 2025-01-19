@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/Button';
 import { useLocalSearchParams } from 'expo-router';
 import { RecentCharges } from '@/components/RecentCharges';
 import { SavedCards } from '@/components/SavedCards';
-
+import { useParams } from '@/context/ParamsContext';
 export default function PaymentScreen() {
-  const { username } = useLocalSearchParams();
+  const { username, user_id } = useParams();
   const { createToken, createPaymentMethod } = useStripe();
   const [cardComplete, setCardComplete] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
