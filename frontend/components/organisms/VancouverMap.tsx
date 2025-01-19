@@ -8,7 +8,7 @@ import BusIcon from '@/components/atoms/BusIcon';
 import { loadRouteData, calculateDistance } from '@/components/utils/route_utils';
 
 
-const VancouverMap: React.FC<{location: any; setLocation: any; busData:any; setBusData: any; closestRoutes: any; setClosestRoutes: any }> = ({
+const VancouverMap: React.FC<{location: any; setLocation: any; busData: Array<{ latitude: number; longitude: number; route_id: number }>; setBusData: any; closestRoutes: any; setClosestRoutes: any }> = ({
   location,
   setLocation,
   busData,
@@ -41,7 +41,7 @@ const VancouverMap: React.FC<{location: any; setLocation: any; busData:any; setB
             calculateDistance(location.latitude, location.longitude, point.latitude, point.longitude)
           )
         );
-        return { routeId: parseInt(routeId, 10), distance: minDistance, color: routeCoords[0].color };
+        return { routeId: parseInt(routeId), distance: minDistance, color: routeCoords[0].color };
       })
       .sort((a, b) => a.distance - b.distance);
   
@@ -53,7 +53,7 @@ const VancouverMap: React.FC<{location: any; setLocation: any; busData:any; setB
         uniqueRouteIds.add(route); // Add unique route ID
         return true;
       })
-      .slice(0, 4); // Take the two closest unique routes
+      .slice(0, 5); // Take the two closest unique routes
   
     setClosestRoutes(closestUniqueRoutes.map((r) => r));
   }, [location, routes]);
@@ -168,8 +168,8 @@ const VancouverMap: React.FC<{location: any; setLocation: any; busData:any; setB
         )}
         {routes &&
           Object.keys(routes).map((routeId, index) => {
-            const isClosest = closestRoutes.includes(parseInt(routeId));
-          
+            const closestRoute = closestRoutes.find((route: any) => route.routeId === parseInt(routeId));
+            const isClosest = !!closestRoute;
             return (
               <Polyline
                 key={routeId}
