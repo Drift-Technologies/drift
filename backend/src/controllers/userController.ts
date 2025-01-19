@@ -45,6 +45,46 @@ export const createUser = async (req: Request, res: Response) => {
   }
 };
 
+export const login = async (req: Request, res: Response) => {
+  try {
+    const { name, password } = req.body;
+
+    // Find user by name
+    const user = await User.findOne({ name });
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid credentials'
+      });
+    }
+
+    // Compare password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid credentials'
+      });
+    }
+
+    // Return user data
+    res.status(200).json({
+      success: true,
+      data: {
+        name: user.name,
+        user_id: user.user_id
+      }
+    });
+
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(400).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to login'
+    });
+  }
+};
+
 export const deleteAllUsers = async (req: Request, res: Response) => {
   try {
     await User.deleteMany({});

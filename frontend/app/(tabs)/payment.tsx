@@ -5,13 +5,14 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { useLocalSearchParams } from 'expo-router';
 import { RecentCharges } from '@/components/RecentCharges';
+import { SavedCards } from '@/components/SavedCards';
 
 export default function PaymentScreen() {
   const { username } = useLocalSearchParams();
-  const { createToken } = useStripe();
+  const { createToken, createPaymentMethod } = useStripe();
   const [cardComplete, setCardComplete] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [key, setKey] = useState(0); // Add a key to force re-render of RecentCharges
+  const [key, setKey] = useState(0);
 
   // Add this console.log to debug
   console.log('Payment Screen Username:', username);
@@ -19,7 +20,7 @@ export default function PaymentScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    // Force re-render of RecentCharges by updating its key
+    // Force re-render of both components by updating their keys
     setKey(prevKey => prevKey + 1);
     setRefreshing(false);
   }, []);
@@ -33,29 +34,63 @@ export default function PaymentScreen() {
         return;
       }
 
-      console.log('Username:', username); // Add this to debug
+      console.log('Username:', username);
       console.log('API URL:', `${process.env.EXPO_PUBLIC_API_URL}/users/${username}`);
       
       // Get user_id first
       const userResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/${username}`);
-      
-      // Log the raw response
-      console.log('Raw response:', await userResponse.text());
-      
-      // Reset the response stream for JSON parsing
-      const userData = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/${username}`).then(res => res.json());
+      const userData = await userResponse.json();
       
       if (!userData.success) {
         Alert.alert('Error', 'Could not find user');
         return;
       }
 
-      // Create token
+      // Create payment method to get card details
+      const { paymentMethod, error: paymentMethodError } = await createPaymentMethod({
+        paymentMethodType: 'Card'
+      });
+      
+      if (paymentMethodError) {
+        Alert.alert('Error', paymentMethodError.message);
+        return;
+      }
+
+      if (!paymentMethod) {
+        Alert.alert('Error', 'Failed to read card details');
+        return;
+      }
+
+      // Check if card already exists
+      const existingCardsResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/payments/methods/${userData.user_id}`);
+      const existingCardsData = await existingCardsResponse.json();
+      
+      if (existingCardsData.success && existingCardsData.payment_methods) {
+        const cardDetails = paymentMethod.Card;
+        if (!cardDetails?.last4 || !cardDetails?.brand) {
+          Alert.alert('Error', 'Could not read card details');
+          return;
+        }
+
+        // At this point TypeScript knows both last4 and brand are defined
+        const last4 = cardDetails.last4;
+        const brand = cardDetails.brand;
+
+        const isDuplicate = existingCardsData.payment_methods.some(
+          (card: { last4: string; brand: string }) => 
+            card.last4 === last4 && 
+            card.brand.toLowerCase() === brand.toLowerCase()
+        );
+
+        if (isDuplicate) {
+          Alert.alert('Error', 'This card has already been saved to your account');
+          return;
+        }
+      }
+
+      // Create token for the backend
       const { token, error } = await createToken({ type: 'Card' });
       
-      console.log('Stripe token:', token);
-      console.log('Stripe error:', error);
-
       if (error) {
         Alert.alert('Error', error.message);
         return;
@@ -63,6 +98,12 @@ export default function PaymentScreen() {
 
       if (!token) {
         Alert.alert('Error', 'Something went wrong');
+        return;
+      }
+
+      const cardDetails = paymentMethod.Card;
+      if (!cardDetails?.last4 || !cardDetails?.brand) {
+        Alert.alert('Error', 'Could not read card details');
         return;
       }
 
@@ -74,28 +115,33 @@ export default function PaymentScreen() {
         },
         body: JSON.stringify({
           token: token.id,
-          user_id: userData.user_id
+          user_id: userData.user_id,
+          card_details: {
+            last4: cardDetails.last4,
+            brand: cardDetails.brand
+          }
         }),
       });
 
-      console.log('Backend response:', await response.clone().text());
-
       if (!response.ok) {
-        console.log('Error response:', await response.text());
-        Alert.alert('Error', 'Failed to create customer');
+        const errorText = await response.text();
+        console.log('Error response:', errorText);
+        Alert.alert('Error', 'Failed to save card');
         return;
       }
 
       const data = await response.json();
       
       if (data.success) {
-        Alert.alert('Success', 'Payment method saved successfully');
+        Alert.alert('Success', 'Card saved successfully');
+        // Refresh the saved cards list
+        onRefresh();
       } else {
         Alert.alert('Error', data.error || 'Something went wrong');
       }
     } catch (err) {
       console.error('Payment error:', err);
-      Alert.alert('Error', 'Failed to process payment method');
+      Alert.alert('Error', 'Failed to save card');
     }
   };
 
@@ -106,7 +152,7 @@ export default function PaymentScreen() {
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
-          tintColor="#333" // Color of the refresh spinner
+          tintColor="#333"
         />
       }
     >
@@ -131,7 +177,8 @@ export default function PaymentScreen() {
         Save Card
       </Button>
 
-      <RecentCharges key={key} username={username as string} />
+      <SavedCards key={`saved-cards-${key}`} username={username as string} onRefresh={onRefresh} />
+      <RecentCharges key={`recent-charges-${key}`} username={username as string} />
     </ScrollView>
   );
 }

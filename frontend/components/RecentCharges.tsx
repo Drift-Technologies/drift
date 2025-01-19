@@ -1,10 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { Text } from '@/components/ui/Text';
 
 interface Transaction {
   bus_route: string;
   timestamp: string;
   charge_amt: number;
+  payment_method?: {
+    brand: string;
+    last4: string;
+  };
 }
 
 interface RecentChargesProps {
@@ -71,7 +76,14 @@ export const RecentCharges: React.FC<RecentChargesProps> = ({ username }) => {
         <View key={index} style={styles.transactionItem}>
           <View style={styles.leftContent}>
             <Text style={styles.routeText}>Route {transaction.bus_route}</Text>
-            <Text style={styles.timestampText}>{formatDate(transaction.timestamp)}</Text>
+            <View style={styles.paymentInfo}>
+              {transaction.payment_method && (
+                <Text style={styles.cardText}>
+                  {transaction.payment_method.brand} •••• {transaction.payment_method.last4}
+                </Text>
+              )}
+              <Text style={styles.timestampText}>{formatDate(transaction.timestamp)}</Text>
+            </View>
           </View>
           <Text style={styles.amountText}>${transaction.charge_amt.toFixed(2)}</Text>
         </View>
@@ -120,10 +132,20 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#333',
   },
+  paymentInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  cardText: {
+    fontSize: 14,
+    color: '#666',
+    marginRight: 8,
+    textTransform: 'capitalize',
+  },
   timestampText: {
     fontSize: 14,
     color: '#666',
-    marginTop: 4,
   },
   amountText: {
     fontSize: 16,
