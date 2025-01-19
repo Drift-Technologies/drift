@@ -5,6 +5,7 @@ import routes from './routes';
 import config from './config';
 import paymentRoutes from './routes/payment';
 import userRoutes from './routes/user';
+import transactionRoutes from './routes/transactions';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -22,6 +23,7 @@ app.use(express.json());
 app.use('/api', routes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/transactions', transactionRoutes);
 
 // Start server
 app.listen(port, () => {

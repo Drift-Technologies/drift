@@ -7,11 +7,16 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 import TabBarBackground from '@/components/ui/TabBarBackground';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useLocalSearchParams } from 'expo-router';
+import {ParamsProvider} from '@/context/ParamsContext'
+
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { username, user_id } = useLocalSearchParams();
 
   return (
+    <ParamsProvider value={{ username, user_id }}>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
@@ -40,13 +45,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="creditcard.fill" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
     </Tabs>
+    </ParamsProvider>
   );
 }
