@@ -46,6 +46,7 @@ export default function HomeScreen() {
    
       <View style={styles.mapContainer}>
         <VancouverMap 
+          username={username}
           location={location}
           setLocation={setLocation}
           closestRoutes={closestRoutes} 
