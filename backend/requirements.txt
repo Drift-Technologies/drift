@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+pandas
+numpy
+websockets
+python-multipart
+slowapi
+h3==3.7.7
