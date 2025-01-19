@@ -9,7 +9,10 @@ const LoginScreen: React.FC = () => {
 
   const handleLogin = () => {
     if (username === 'Yibin' && password === 'pass') {
-      router.push({ pathname: '/(tabs)', params: { username } }); // Navigate to the tabs layout
+      router.push({
+        pathname: '/(tabs)/payment',
+        params: { username }
+      });
     } else {
       alert('Invalid credentials!');
     }
@@ -37,7 +40,7 @@ const LoginScreen: React.FC = () => {
       <TouchableOpacity style={styles.button} onPress={handleLogin}>
         <Text style={styles.buttonText}>Login</Text>
       </TouchableOpacity>
-      <Text style={styles.footerText}>Don’t have an account? <Text style={styles.link}>Sign up</Text></Text>
+      <Text style={styles.footerText}>Don't have an account? <Text style={styles.link}>Sign up</Text></Text>
     </View>
   );
 };
