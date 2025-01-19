@@ -11,8 +11,8 @@ import busNames from '@/assets/bus_names.json';
 
 
 
-const VancouverMap: React.FC<{username: string; location: any; setLocation: any; busData: Array<{ latitude: number; longitude: number; route_id: number }>; setBusData: any; closestRoutes: any; setClosestRoutes: any }> = ({
-  username,
+const VancouverMap: React.FC<{user_id: any; location: any; setLocation: any; busData: Array<{ latitude: number; longitude: number; route_id: number }>; setBusData: any; closestRoutes: any; setClosestRoutes: any }> = ({
+  user_id,
   location,
   setLocation,
   busData,
@@ -194,7 +194,7 @@ const VancouverMap: React.FC<{username: string; location: any; setLocation: any;
               longitude: locationData.lon
             };
 
-            console.log(lastLocationRef.current);
+            // console.log(lastLocationRef.current);
 
             // Add new location to history with null check
             locationHistoryRef.current.push({
@@ -207,11 +207,17 @@ const VancouverMap: React.FC<{username: string; location: any; setLocation: any;
             // If we have 30 locations, send them to the API
             if (locationHistoryRef.current.length >= 100) {
               const res = await sendLocationsToAPI([...locationHistoryRef.current]);
-              console.log(res);
+              // console.log(res);
 
               const makePayment = async () => {
+                console.log({
+                  user_id: user_id,
+                  bus_route: busNames.find((x) => Number(x.shape_id) === 292250)?.trip_headsign || '49',
+                  charge_amt: 3.50
+                })
+                
                 const paymentResult = await processPayment({
-                  user_id: username,
+                  user_id: user_id,
                   bus_route: busNames.find((x) => Number(x.shape_id) === 292250)?.trip_headsign || '49',
                   charge_amt: 3.50
                 });

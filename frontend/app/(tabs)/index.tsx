@@ -8,11 +8,12 @@ import { ThemedView } from '@/components/ThemedView';
 import VancouverMap from '@/components/organisms/VancouverMap'
 import { useLocalSearchParams } from 'expo-router';
 import busNames from '@/assets/bus_names.json';
+import { useParams } from '@/context/ParamsContext';
 
 
 export default function HomeScreen() {
   const statusBarHeight = Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0;
-  const { username } = useLocalSearchParams();
+  const { username, user_id } = useParams();
   const [location, setLocation] = useState<any>({});
   const [closestRoutes, setClosestRoutes] = useState<Array<{ latitude: number; longitude: number; routeId: number; color: string}>>([]);
   const [busData, setBusData] = useState<Array<{ latitude: number; longitude: number; route_id: number }>>([]);
@@ -46,7 +47,7 @@ export default function HomeScreen() {
    
       <View style={styles.mapContainer}>
         <VancouverMap 
-          username={username}
+          user_id={user_id}
           location={location}
           setLocation={setLocation}
           closestRoutes={closestRoutes} 

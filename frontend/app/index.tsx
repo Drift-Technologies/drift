@@ -24,11 +24,11 @@ const LoginScreen: React.FC = () => {
       });
 
       const data = await response.json();
-
+      const user_id = data.data.user_id;
       if (data.success) {
         router.push({
           pathname: '/(tabs)/payment',
-          params: { username }
+          params: { username, user_id }
         });
       } else {
         Alert.alert('Error', data.error || 'Invalid credentials');

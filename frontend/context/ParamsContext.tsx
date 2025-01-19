@@ -1,7 +1,9 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 
-type ParamsContextType = {
-  username?: string;
+export type ParamsContextType = {
+  username: string;
+  user_id: string;
+  setParams: (params: { username: string; user_id: string }) => void;
 };
 
 const ParamsContext = createContext<ParamsContextType | null>(null);
