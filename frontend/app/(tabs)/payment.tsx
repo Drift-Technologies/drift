@@ -3,16 +3,49 @@ import { View, StyleSheet, Alert } from 'react-native';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
+import { useLocalSearchParams } from 'expo-router';
 
 export default function PaymentScreen() {
+  const { username } = useLocalSearchParams();
   const { createToken } = useStripe();
   const [cardComplete, setCardComplete] = useState(false);
 
+  // Add this console.log to debug
+  console.log('Payment Screen Username:', username);
+  console.log('All params:', useLocalSearchParams());
+
   const handlePayPress = async () => {
     try {
-      // Create a payment method
+      // Check if username exists
+      if (!username) {
+        console.log('Username is undefined in payment screen');
+        Alert.alert('Error', 'Username not found');
+        return;
+      }
+
+      console.log('Username:', username); // Add this to debug
+      console.log('API URL:', `${process.env.EXPO_PUBLIC_API_URL}/api/users/${username}`);
+      
+      // Get user_id first
+      const userResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/users/${username}`);
+      
+      // Log the raw response
+      console.log('Raw response:', await userResponse.text());
+      
+      // Reset the response stream for JSON parsing
+      const userData = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/users/${username}`).then(res => res.json());
+      
+      if (!userData.success) {
+        Alert.alert('Error', 'Could not find user');
+        return;
+      }
+
+      // Create token
       const { token, error } = await createToken({ type: 'Card' });
       
+      console.log('Stripe token:', token);
+      console.log('Stripe error:', error);
+
       if (error) {
         Alert.alert('Error', error.message);
         return;
@@ -23,16 +56,19 @@ export default function PaymentScreen() {
         return;
       }
 
-      // Here we would send the token to our backend
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/payments/create-customer`, {
+      // Send token with user_id
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/payments/create-customer`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           token: token.id,
+          user_id: userData.user_id
         }),
       });
+
+      console.log('Backend response:', await response.clone().text());
 
       const data = await response.json();
       
@@ -42,6 +78,7 @@ export default function PaymentScreen() {
         Alert.alert('Error', data.error || 'Something went wrong');
       }
     } catch (err) {
+      console.error('Payment error:', err);
       Alert.alert('Error', 'Failed to process payment method');
     }
   };
