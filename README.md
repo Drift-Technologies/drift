@@ -102,9 +102,9 @@ This project was created for nwHacks 2025 at the University of British Columbia.
 - **WebSocket**: Real-time communication for user location and TransLink data simulation.
 
 ## 👥 Contributors
-- Farhan bin Faisal
-- Jiayi Li
--Yibin Long
+- Farhan bin Faisal  
+- Jiayi Li  
+- Yibin Long  
 
 
 ## 🙏 Acknowledgments
