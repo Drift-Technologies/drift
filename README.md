@@ -1,4 +1,6 @@
-# 🚍 Drift: Revolutionizing Transportation
+# 🚍 Drift: Revolutionizing Transportation (Now a nwHacks 2025 Telus Finalist!) 
+
+![image](https://github.com/user-attachments/assets/a34ccf7e-32e3-4551-95a8-2612ea6aca48)
 
 ## 🌟 Overview
 Drift is an innovative app designed to revolutionize public transportation payments. Our app enables users to pay for bus rides seamlessly without physical interaction. By leveraging geolocation data, TransLink bus location data, and Stripe payments, we provide a hassle-free and intelligent payment system that automatically charges users based on their trips.
