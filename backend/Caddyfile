@@ -1,0 +1,9 @@
+localhost {
+    handle /api/* {
+        reverse_proxy api:8000
+    }
+
+    handle /* {
+        respond "DriftBus API Gateway"
+    }
+} 
