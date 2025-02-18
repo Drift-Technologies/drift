@@ -1,6 +1,6 @@
 import pandas as pd
 from google.transit import gtfs_realtime_pb2
-from datetime import datetime
+from datetime import datetime, timezone
 
 def parse_gtfs_realtime_data(response: bytes) -> pd.DataFrame:
     """
@@ -95,40 +95,60 @@ def parse_gtfs_position_data(response: bytes) -> pd.DataFrame:
         trip = vehicle.trip
         position = vehicle.position
 
+        # row = {
+        #     "id": entity.id,
+        #     "trip_id": trip.trip_id,
+        #     "start_date": trip.start_date,
+        #     "schedule_relationship": trip.schedule_relationship,
+        #     "route_id": trip.route_id,
+        #     "direction_id": trip.direction_id,
+        #     "vehicle_id": (
+        #         vehicle.vehicle.id if vehicle.vehicle.HasField("id") else None
+        #     ),
+        #     "vehicle_label": (
+        #         vehicle.vehicle.label if vehicle.vehicle.HasField("label") else None
+        #     ),
+        #     "latitude": (
+        #         position.latitude if position.HasField("latitude") else None
+        #     ),
+        #     "longitude": (
+        #         position.longitude if position.HasField("longitude") else None
+        #     ),
+        #     "current_stop_sequence": (
+        #         vehicle.current_stop_sequence
+        #         if vehicle.HasField("current_stop_sequence")
+        #         else None
+        #     ),
+        #     "current_status": (
+        #         vehicle.current_status
+        #         if vehicle.HasField("current_status")
+        #         else None
+        #     ),
+        #     "timestamp": (
+        #         vehicle.timestamp if vehicle.HasField("timestamp") else None
+        #     ),
+        #     "stop_id": vehicle.stop_id if vehicle.HasField("stop_id") else None,
+        #     "current_datetime": datetime.utcnow(),  # Use UTC for consistency
+        # }
+        # rows.append(row)
+
         row = {
-            "id": entity.id,
-            "trip_id": trip.trip_id,
-            "start_date": trip.start_date,
-            "schedule_relationship": trip.schedule_relationship,
-            "route_id": trip.route_id,
-            "direction_id": trip.direction_id,
-            "vehicle_id": (
-                vehicle.vehicle.id if vehicle.vehicle.HasField("id") else None
-            ),
-            "vehicle_label": (
-                vehicle.vehicle.label if vehicle.vehicle.HasField("label") else None
-            ),
-            "latitude": (
-                position.latitude if position.HasField("latitude") else None
-            ),
-            "longitude": (
-                position.longitude if position.HasField("longitude") else None
-            ),
-            "current_stop_sequence": (
-                vehicle.current_stop_sequence
-                if vehicle.HasField("current_stop_sequence")
-                else None
-            ),
-            "current_status": (
-                vehicle.current_status
-                if vehicle.HasField("current_status")
-                else None
-            ),
-            "timestamp": (
-                vehicle.timestamp if vehicle.HasField("timestamp") else None
-            ),
-            "stop_id": vehicle.stop_id if vehicle.HasField("stop_id") else None,
-            "current_datetime": datetime.utcnow(),  # Use UTC for consistency
+            "id": str(entity.id),  # Ensure string type
+            "trip_id": str(trip.trip_id),
+            "start_date": str(trip.start_date),
+            "schedule_relationship": int(trip.schedule_relationship),
+            "route_id": str(trip.route_id),
+            "direction_id": int(trip.direction_id),
+            "vehicle_id": str(vehicle.vehicle.id) if vehicle.vehicle.HasField("id") else None,
+            "vehicle_label": str(vehicle.vehicle.label) if vehicle.vehicle.HasField("label") else None,
+            "latitude": float(position.latitude) if position.HasField("latitude") else None,
+            "longitude": float(position.longitude) if position.HasField("longitude") else None,
+            "current_stop_sequence": int(vehicle.current_stop_sequence) if vehicle.HasField("current_stop_sequence") else None,
+            "current_status": int(vehicle.current_status) if vehicle.HasField("current_status") else None,
+            "timestamp": int(vehicle.timestamp) if vehicle.HasField("timestamp") else None,
+            "stop_id": str(vehicle.stop_id) if vehicle.HasField("stop_id") else None,
+            # "current_datetime": datetime.utcnow(),
+            "current_datetime": datetime.now(timezone.utc),
         }
         rows.append(row)
 

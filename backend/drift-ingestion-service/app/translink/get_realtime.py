@@ -13,14 +13,14 @@ import json
 import pandas as pd
 from datetime import datetime
 
-from utils.secrets import SecretsManager
-from utils.parser import parse_gtfs_realtime_data
-from utils.redis_client import drift_redis_client, DriftRedisClient, store_with_history
+from app.translink.utils.secrets import SecretsManager
+from app.translink.utils.parser import parse_gtfs_realtime_data
+from app.translink.utils.redis_client import drift_redis_client, store_with_history
 
 class TranslinkRealtimeFetcher:
     def __init__(self, output_dir: str = "/tmp"):
         # Use SecretsManager to get the API key; adjust the cloud provider as needed
-        self.api_key = SecretsManager(cloud_provider='local').get_parameter('/translink/api-key')
+        self.api_key = SecretsManager(cloud_provider='local').get_parameter('TRANSLINK_KEY')
         self.realtime_url = f"https://gtfsapi.translink.ca/v3/gtfsrealtime?apikey={self.api_key}"
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -45,7 +45,7 @@ class TranslinkRealtimeFetcher:
     def run(self):
         realtime_data_raw = self.fetch_gtfs_data(self.realtime_url)
         if not realtime_data_raw:
-            sys.exit(1)
+            return 
         realtime_df = parse_gtfs_realtime_data(realtime_data_raw)
         self.write_to_redis(realtime_df, "realtime")
 

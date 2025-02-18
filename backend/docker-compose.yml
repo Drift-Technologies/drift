@@ -25,7 +25,6 @@ services:
     depends_on:
       - redis
 
-      
   drift-ride-service:
     build:
       context: ./drift-ride-service
