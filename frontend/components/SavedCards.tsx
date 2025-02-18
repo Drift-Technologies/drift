@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 
@@ -18,12 +18,9 @@ interface SavedCardsProps {
 export const SavedCards: React.FC<SavedCardsProps> = ({ username, onRefresh }) => {
   const [paymentMethods, setPaymentMethods] = React.useState<PaymentMethod[]>([]);
   const [defaultPaymentMethodId, setDefaultPaymentMethodId] = React.useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = React.useState(false);
-  const rotateAnim = React.useRef(new Animated.Value(0)).current;
 
   const fetchPaymentMethods = React.useCallback(async () => {
     try {
-      // First get user_id
       const userResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/${username}`);
       const userData = await userResponse.json();
       
@@ -32,7 +29,6 @@ export const SavedCards: React.FC<SavedCardsProps> = ({ username, onRefresh }) =
         return;
       }
 
-      // Then get payment methods
       const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/payments/methods/${userData.user_id}`);
       const data = await response.json();
       
@@ -48,14 +44,6 @@ export const SavedCards: React.FC<SavedCardsProps> = ({ username, onRefresh }) =
   React.useEffect(() => {
     fetchPaymentMethods();
   }, [fetchPaymentMethods]);
-
-  React.useEffect(() => {
-    Animated.timing(rotateAnim, {
-      toValue: isExpanded ? 1 : 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-  }, [isExpanded]);
 
   const setDefaultCard = async (paymentMethodId: string) => {
     try {
@@ -81,7 +69,6 @@ export const SavedCards: React.FC<SavedCardsProps> = ({ username, onRefresh }) =
       const data = await response.json();
       if (data.success) {
         setDefaultPaymentMethodId(paymentMethodId);
-        setIsExpanded(false);
         if (onRefresh) {
           onRefresh();
         }
@@ -95,49 +82,38 @@ export const SavedCards: React.FC<SavedCardsProps> = ({ username, onRefresh }) =
     return null;
   }
 
-  const defaultCard = paymentMethods.find(method => method.payment_method_id === defaultPaymentMethodId);
-  const otherCards = paymentMethods.filter(method => method.payment_method_id !== defaultPaymentMethodId);
-
-  const spin = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '180deg'],
-  });
-
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Payment Method</Text>
+      <Text style={styles.title}>Payment Methods</Text>
       
-      {/* Default Card Header - Always visible */}
-      <TouchableOpacity 
-        style={styles.dropdownHeader}
-        onPress={() => setIsExpanded(!isExpanded)}
-      >
-        <View style={styles.cardInfo}>
-          <Text style={styles.cardBrand}>{defaultCard?.brand}</Text>
-          <Text style={styles.cardNumber}>•••• {defaultCard?.last4}</Text>
-        </View>
-        <Animated.View style={{ transform: [{ rotate: spin }] }}>
-          <IconSymbol name="chevron.down" size={20} color="#333" />
-        </Animated.View>
-      </TouchableOpacity>
-
-      {/* Other Cards - Visible when expanded */}
-      {isExpanded && (
-        <View style={styles.dropdownContent}>
-          {otherCards.map((method) => (
-            <TouchableOpacity
-              key={method.payment_method_id}
-              style={styles.cardItem}
-              onPress={() => setDefaultCard(method.payment_method_id)}
-            >
-              <View style={styles.cardInfo}>
-                <Text style={styles.cardBrand}>{method.brand}</Text>
-                <Text style={styles.cardNumber}>•••• {method.last4}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
+      {paymentMethods.map((method) => (
+        <TouchableOpacity
+          key={method.payment_method_id}
+          style={[
+            styles.cardItem,
+            method.payment_method_id === defaultPaymentMethodId && styles.selectedCard
+          ]}
+          onPress={() => setDefaultCard(method.payment_method_id)}
+        >
+          <View style={styles.cardInfo}>
+            <Text style={[
+              styles.cardBrand,
+              method.payment_method_id === defaultPaymentMethodId && styles.selectedText
+            ]}>
+              {method.brand}
+            </Text>
+            <Text style={[
+              styles.cardNumber,
+              method.payment_method_id === defaultPaymentMethodId && styles.selectedText
+            ]}>
+              •••• {method.last4}
+            </Text>
+          </View>
+          {method.payment_method_id === defaultPaymentMethodId && (
+            <IconSymbol name="checkmark.circle.fill" size={20} color="#007AFF" />
+          )}
+        </TouchableOpacity>
+      ))}
     </View>
   );
 };
@@ -155,31 +131,20 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     color: '#333',
   },
-  dropdownHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-  },
-  dropdownContent: {
-    marginTop: 8,
-    borderRadius: 8,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
   cardItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
+    marginBottom: 8,
     backgroundColor: '#f8f9fa',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  selectedCard: {
+    borderColor: '#007AFF',
+    backgroundColor: '#f0f8ff',
   },
   cardInfo: {
     flexDirection: 'row',
@@ -190,9 +155,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginRight: 8,
     textTransform: 'capitalize',
+    color: '#666',
   },
   cardNumber: {
     fontSize: 16,
     color: '#666',
+  },
+  selectedText: {
+    color: '#007AFF',
+    fontWeight: '600',
   },
 }); 
