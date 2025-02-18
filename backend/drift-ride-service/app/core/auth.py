@@ -1,5 +1,10 @@
 from fastapi import HTTPException, Header
-from app.core.config import API_KEY
+import os
+
+API_KEY = os.environ.get('API_KEY')
+
+if not API_KEY:
+    raise ValueError("API_KEY environment variable is not set")
 
 async def verify_api_key(x_api_key: str = Header(None)):
     if x_api_key != API_KEY:

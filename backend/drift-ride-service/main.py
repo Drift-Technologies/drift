@@ -45,7 +45,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Get API key from environment variable with a default value for development
-API_KEY = environ.get('API_KEY')
+API_KEY = os.environ.get('API_KEY')
 
 if not API_KEY:
     raise ValueError("API_KEY environment variable is not set")

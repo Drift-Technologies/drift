@@ -36,11 +36,24 @@ class TranslinkPositionFetcher:
     def write_to_redis(self, df: pd.DataFrame, tag: str):
         client = drift_redis_client()
         key = f"translink:{tag}"
+        stream_key = f"translink:{tag}:stream"
         
         # Convert DataFrame to JSON
         data_json = df.to_json(orient="records")
-        # Store with history
+        
+        # Store the current state
         store_with_history(client, key, data_json)
+        
+        # Add to stream with timestamp
+        client.xadd(
+            stream_key,
+            {
+                'data': data_json,
+                'timestamp': datetime.now().isoformat()
+            },
+            maxlen=20,
+            approximate= True   # Keep last 1000 entries
+        )
 
     def run(self):
         position_data_raw = self.fetch_gtfs_data(self.position_url)

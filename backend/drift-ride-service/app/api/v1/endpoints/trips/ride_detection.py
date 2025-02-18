@@ -14,7 +14,7 @@ class LocationMatchResponse(BaseModel):
     is_on_bus: bool
     message: str
 
-@router.post("/rule-based/predict",  dependencies=[Depends(verify_api_key)])
+@router.post("/detection/",  dependencies=[Depends(verify_api_key)])
 @limiter.limit("100/minute")
 async def receive_user_location(
     request: Request,
