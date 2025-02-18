@@ -1,19 +1,6 @@
 version: '3.8'
 
 services:
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./app:/app/app
-    environment:
-      - PYTHONPATH=/app
-    networks:
-      - driftbus-network
-
   caddy:
     image: caddy:2-alpine
     ports:
@@ -23,15 +10,37 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
-    networks:
-      - driftbus-network
     depends_on:
-      - api
+      - drift-ride-service
+      - drift-ingestion-service
 
-networks:
-  driftbus-network:
-    driver: bridge
+  drift-ingestion-service:
+    build:
+      context: ./drift-ingestion-service
+      dockerfile: Dockerfile
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    # Remove exposed ports as Caddy will handle external access
+    depends_on:
+      - redis
+
+  drift-ride-service:
+    build:
+      context: ./drift-ride-service
+      dockerfile: Dockerfile
+    # Remove exposed ports as Caddy will handle external access
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
 
 volumes:
   caddy_data:
-  caddy_config: 
+  caddy_config:
