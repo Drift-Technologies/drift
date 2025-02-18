@@ -4,7 +4,6 @@ import { CardField, useStripe } from '@stripe/stripe-react-native';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { SavedCards } from '@/components/SavedCards';
-import { RecentCharges } from '@/components/RecentCharges';
 import { useParams } from '@/context/ParamsContext';
 
 export default function WalletScreen() {
@@ -152,7 +151,6 @@ export default function WalletScreen() {
       </Button>
 
       <SavedCards key={`saved-cards-${key}`} username={username as string} onRefresh={onRefresh} />
-      <RecentCharges key={`recent-charges-${key}`} username={username as string} />
     </ScrollView>
   );
 }
