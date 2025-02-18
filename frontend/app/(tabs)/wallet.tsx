@@ -12,12 +12,23 @@ export default function WalletScreen() {
   const [cardComplete, setCardComplete] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [key, setKey] = useState(0);
+  const [refreshSubscribers] = useState(() => new Set<() => void>());
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    setKey(prevKey => prevKey + 1);
+    // Notify all subscribers
+    refreshSubscribers.forEach(subscriber => subscriber());
     setRefreshing(false);
-  }, []);
+  }, [refreshSubscribers]);
+
+  // Add subscribe/unsubscribe methods to onRefresh
+  onRefresh.subscribe = (callback: () => void) => {
+    refreshSubscribers.add(callback);
+  };
+
+  onRefresh.unsubscribe = (callback: () => void) => {
+    refreshSubscribers.delete(callback);
+  };
 
   const handlePayPress = async () => {
     try {
@@ -150,7 +161,7 @@ export default function WalletScreen() {
         Save Card
       </Button>
 
-      <SavedCards key={`saved-cards-${key}`} username={username as string} onRefresh={onRefresh} />
+      <SavedCards username={username as string} onRefresh={onRefresh} />
     </ScrollView>
   );
 }

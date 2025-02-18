@@ -12,12 +12,19 @@ interface PaymentMethod {
 
 interface SavedCardsProps {
   username: string;
-  onRefresh?: () => void;
+  onRefresh?: {
+    subscribe?: (handler: () => void) => void;
+    unsubscribe?: (handler: () => void) => void;
+  };
 }
 
 export const SavedCards: React.FC<SavedCardsProps> = ({ username, onRefresh }) => {
   const [paymentMethods, setPaymentMethods] = React.useState<PaymentMethod[]>([]);
   const [defaultPaymentMethodId, setDefaultPaymentMethodId] = React.useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = React.useState(false);
+
+  // Add a refresh trigger
+  const [refreshTrigger, setRefreshTrigger] = React.useState(0);
 
   const fetchPaymentMethods = React.useCallback(async () => {
     try {
@@ -41,12 +48,33 @@ export const SavedCards: React.FC<SavedCardsProps> = ({ username, onRefresh }) =
     }
   }, [username]);
 
+  // Update useEffect to include refreshTrigger
   React.useEffect(() => {
     fetchPaymentMethods();
-  }, [fetchPaymentMethods]);
+  }, [fetchPaymentMethods, refreshTrigger]);
+
+  // Update the parent's onRefresh to trigger our local refresh
+  React.useEffect(() => {
+    if (onRefresh) {
+      const handleRefresh = () => {
+        setRefreshTrigger(prev => prev + 1);
+      };
+      // Subscribe to parent's refresh
+      onRefresh.subscribe?.(handleRefresh);
+      return () => {
+        // Cleanup subscription
+        onRefresh.unsubscribe?.(handleRefresh);
+      };
+    }
+  }, [onRefresh]);
 
   const setDefaultCard = async (paymentMethodId: string) => {
     try {
+      setIsUpdating(true); // Start loading state
+      
+      // Optimistically update the UI
+      setDefaultPaymentMethodId(paymentMethodId);
+
       const userResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/${username}`);
       const userData = await userResponse.json();
       
@@ -68,13 +96,19 @@ export const SavedCards: React.FC<SavedCardsProps> = ({ username, onRefresh }) =
 
       const data = await response.json();
       if (data.success) {
-        setDefaultPaymentMethodId(paymentMethodId);
         if (onRefresh) {
           onRefresh();
         }
+      } else {
+        // Revert the optimistic update if the request failed
+        await fetchPaymentMethods();
       }
     } catch (error) {
       console.error('Error setting default card:', error);
+      // Revert the optimistic update if there was an error
+      await fetchPaymentMethods();
+    } finally {
+      setIsUpdating(false); // End loading state
     }
   };
 
@@ -94,6 +128,7 @@ export const SavedCards: React.FC<SavedCardsProps> = ({ username, onRefresh }) =
             method.payment_method_id === defaultPaymentMethodId && styles.selectedCard
           ]}
           onPress={() => setDefaultCard(method.payment_method_id)}
+          disabled={isUpdating}
         >
           <View style={styles.cardInfo}>
             <Text style={[
@@ -144,7 +179,7 @@ const styles = StyleSheet.create({
   },
   selectedCard: {
     borderColor: '#007AFF',
-    backgroundColor: '#f0f8ff',
+    backgroundColor: '#f8f9fa',
   },
   cardInfo: {
     flexDirection: 'row',
@@ -155,11 +190,17 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginRight: 8,
     textTransform: 'capitalize',
-    color: '#666',
+    color: '#333',
   },
   cardNumber: {
     fontSize: 16,
     color: '#666',
+  },
+  selectedIndicator: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
   selectedText: {
     color: '#007AFF',
