@@ -3,6 +3,11 @@ import redis
 import json
 from datetime import datetime
 
+
+from apps.models.client_position import ClientPosition
+from app.core.auth import verify_websocket_api_key, WebSocketAuthError
+
+
 router = APIRouter()
 
 def get_redis_client():

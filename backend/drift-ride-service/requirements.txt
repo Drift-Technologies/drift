@@ -1,5 +1,13 @@
 fastapi>=0.104.0
 uvicorn>=0.24.0
+uvicorn[standard]
 pydantic>=2.4.2
 pydantic-settings>=2.0.3
 redis>=5.0.1
+pandas
+numpy
+websockets
+python-multipart
+slowapi
+h3==3.7.7
+python-dotenv==0.19.0

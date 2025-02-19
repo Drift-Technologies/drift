@@ -1,6 +1,7 @@
 import pandas as pd
 from google.transit import gtfs_realtime_pb2
 from datetime import datetime, timezone
+import h3 
 
 def parse_gtfs_realtime_data(response: bytes) -> pd.DataFrame:
     """
@@ -95,6 +96,8 @@ def parse_gtfs_position_data(response: bytes) -> pd.DataFrame:
         trip = vehicle.trip
         position = vehicle.position
 
+        h3_7 = h3.latlng_to_cell(position.latitude, position.longitude, 7)
+
         # row = {
         #     "id": entity.id,
         #     "trip_id": trip.trip_id,
@@ -149,10 +152,12 @@ def parse_gtfs_position_data(response: bytes) -> pd.DataFrame:
             "stop_id": str(vehicle.stop_id) if vehicle.HasField("stop_id") else None,
             # "current_datetime": datetime.utcnow(),
             "current_datetime": datetime.now(timezone.utc),
+            "h3_7": h3_7
         }
         rows.append(row)
 
     if rows:
-        return pd.DataFrame(rows)
+        # return pd.DataFrame(rows)
+        return rows
     else:
-        return pd.DataFrame()
+        return None

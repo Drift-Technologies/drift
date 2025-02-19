@@ -33,22 +33,22 @@ class TranslinkPositionFetcher:
         except requests.RequestException:
             return None
 
-    def write_to_redis(self, df: pd.DataFrame, tag: str):
+    def write_to_redis(self, position_data:list, tag: str):
         client = drift_redis_client()
         key = f"translink:{tag}"
         stream_key = f"translink:{tag}:stream"
         
         # Convert DataFrame to JSON
-        data_json = df.to_json(orient="records")
+        # data_json = json.dumps(df)
         
         # Store the current state
-        store_with_history(client, key, data_json)
+        store_with_history(client, key, position_data)
         
         # Add to stream with timestamp
         client.xadd(
             stream_key,
             {
-                'data': data_json,
+                'data': position_data,
                 'timestamp': datetime.now().isoformat()
             },
             maxlen=20,
