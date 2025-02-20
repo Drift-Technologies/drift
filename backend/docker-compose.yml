@@ -1,18 +1,18 @@
 version: '3.8'
 
 services:
-  caddy:
-    image: caddy:2-alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - drift-ride-service
-      - drift-ingestion-service
+  # caddy:
+  #   image: caddy:2-alpine
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./Caddyfile:/etc/caddy/Caddyfile
+  #     - caddy_data:/data
+  #     - caddy_config:/config
+  #   depends_on:
+  #     - drift-ride-service
+  #     - drift-ingestion-service
 
   drift-ingestion-service:
     build:
@@ -21,7 +21,6 @@ services:
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-    # Remove exposed ports as Caddy will handle external access
     depends_on:
       - redis
 
@@ -29,18 +28,25 @@ services:
     build:
       context: ./drift-ride-service
       dockerfile: Dockerfile
-    # Remove exposed ports as Caddy will handle external access
+    ports:
+      - "8000:8000"
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - DRIFT_TESTING_API_KEY=d32aef51-17da-4650-9b08-433b3c5d911e
+      - API_KEY=d32aef51-17da-4650-9b08-433b3c5d911e
     depends_on:
       - redis
+    volumes:
+      - ./drift-ride-service/app:/app/app
+      - ./drift-ride-service/main.py:/app/main.py
+      - ./drift-ride-service:/app
 
   redis:
     image: redis:alpine
     ports:
       - "6379:6379"
 
-volumes:
-  caddy_data:
-  caddy_config:
+# volumes:
+#   caddy_data:
+#   caddy_config:

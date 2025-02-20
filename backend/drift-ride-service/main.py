@@ -1,3 +1,9 @@
+# Environment variables
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
 # FastAPI and related imports
 from fastapi import (
     FastAPI,
@@ -32,42 +38,36 @@ import math
 from datetime import datetime, timedelta
 from typing import Union
 
-# Local imports
-from pydantic import BaseModel
 
 # Server
 import uvicorn
 
-# Environment variables
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
 
-# Get API key from environment variable with a default value for development
-API_KEY = os.environ.get('API_KEY')
+# Get API key from environment variables -- try both names for flexibility
+API_KEY = os.environ.get('API_KEY') or os.environ.get('DRIFT_TESTING_API_KEY')
 
 if not API_KEY:
-    raise ValueError("API_KEY environment variable is not set")
+    raise ValueError("No valid API key found. Set API_KEY or DRIFT_TESTING_API_KEY in your .env file")
 
 app = FastAPI(
-    title = "DriftBus Backend",
-    version = "1.0.0"
-
-
+    title="DriftBus Backend",
+    version="1.0.0"
 )
 
+
 app.include_router(api_v1_router, prefix="/api/v1")
-
-
 
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+
+
+
 # Mount the static directory
-static_dir = os.path.join(os.path.dirname(__file__), "static")
-app.mount("/static", StaticFiles(directory=static_dir), name="static")
+# static_dir = os.path.join(os.path.dirname(__file__), "static")
+# app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 app.add_middleware(
     CORSMiddleware,
@@ -77,5 +77,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.websocket("/api/v1/test-ws")
+async def test_websocket(websocket: WebSocket):
+    print("Test WebSocket connection attempt received")
+    await websocket.accept()
+    try:
+        while True:
+            # Send a test message every 5 seconds
+            await websocket.send_json({"message": "Test connection successful"})
+            await asyncio.sleep(5)
+    except WebSocketDisconnect:
+        print("Client disconnected from test socket")
+    except Exception as e:
+        print(f"Error in test websocket: {str(e)}")
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

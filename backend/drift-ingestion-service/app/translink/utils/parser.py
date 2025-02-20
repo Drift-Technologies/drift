@@ -96,8 +96,10 @@ def parse_gtfs_position_data(response: bytes) -> pd.DataFrame:
         trip = vehicle.trip
         position = vehicle.position
 
-        h3_7 = h3.latlng_to_cell(position.latitude, position.longitude, 7)
-
+        try:
+            h3_7 = h3.geo_to_h3(position.latitude, position.longitude, 7)
+        except:
+            h3_7 = ""
         # row = {
         #     "id": entity.id,
         #     "trip_id": trip.trip_id,
