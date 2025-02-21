@@ -2,40 +2,49 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 
-const LoginScreen: React.FC = () => {
+const RegisterScreen: React.FC = () => {
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async () => {
+  const handleRegister = async () => {
+    if (!username || !email || !password || !confirmPassword) {
+      Alert.alert('Error', 'All fields are required.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Passwords do not match.');
+      return;
+    }
+
     try {
       setLoading(true);
-      console.log(process.env.EXPO_PUBLIC_API_URL);
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/login`, {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           name: username,
-          password: password,
+          email,
+          password,
         }),
       });
 
       const data = await response.json();
-      const user_id = data.data.user_id;
+      console.log(data)
       if (data.success) {
-        router.push({
-          pathname: '/(tabs)',
-          params: { username, user_id }
-        });
+        Alert.alert('Success', 'Account created successfully!');
+        router.push('/');
       } else {
-        Alert.alert('Error', data.error || 'Invalid credentials');
+        Alert.alert('Error', data.error || 'Failed to register.');
       }
     } catch (error) {
-      console.error('Login error:', error);
-      Alert.alert('Error', 'Failed to login. Please try again.');
+      console.error('Registration error:', error);
+      Alert.alert('Error', 'Failed to register. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -44,12 +53,21 @@ const LoginScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <Image source={require('@/assets/images/logo.png')} style={styles.logo} />
-      <Text style={styles.title}>Welcome Back!</Text>
+      <Text style={styles.title}>Create an Account</Text>
       <TextInput
         style={styles.input}
         placeholder="Username"
         value={username}
         onChangeText={setUsername}
+        placeholderTextColor="#aaa"
+        editable={!loading}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
         placeholderTextColor="#aaa"
         editable={!loading}
       />
@@ -62,19 +80,27 @@ const LoginScreen: React.FC = () => {
         placeholderTextColor="#aaa"
         editable={!loading}
       />
+      <TextInput
+        style={styles.input}
+        placeholder="Confirm Password"
+        value={confirmPassword}
+        onChangeText={setConfirmPassword}
+        secureTextEntry
+        placeholderTextColor="#aaa"
+        editable={!loading}
+      />
       <TouchableOpacity 
         style={[styles.button, loading && styles.buttonDisabled]} 
-        onPress={handleLogin}
+        onPress={handleRegister}
         disabled={loading}
       >
-        <Text style={styles.buttonText}>{loading ? 'Logging in...' : 'Login'}</Text>
+        <Text style={styles.buttonText}>{loading ? 'Registering...' : 'Sign Up'}</Text>
       </TouchableOpacity>
-      
       <Text style={styles.footerText}>
-        Don't have an account? 
-        <TouchableOpacity onPress={() => router.push('/registration')}>
-          <Text style={styles.link}> Sign up</Text>
-        </TouchableOpacity>
+        Already have an account?{' '}
+        <Text style={styles.link} onPress={() => router.push('/')}>
+          Log in
+        </Text>
       </Text>
     </View>
   );
@@ -146,4 +172,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LoginScreen;
+export default RegisterScreen;
