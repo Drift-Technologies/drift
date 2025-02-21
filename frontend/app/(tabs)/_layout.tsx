@@ -49,7 +49,7 @@ export default function TabLayout() {
         name="wallet"
         options={{
           title: 'Wallet',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="creditcard.fill" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="wallet.bifold.fill" color={color} />,
         }}
       />
     </Tabs>
