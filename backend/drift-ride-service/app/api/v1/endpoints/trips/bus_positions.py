@@ -1,3 +1,10 @@
+
+"""
+TODO
+- Remove all the debug logs and clean up error handeling
+
+"""
+
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import redis
 import json
