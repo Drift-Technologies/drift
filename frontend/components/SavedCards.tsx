@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { useRouter } from 'expo-router';
 
 interface PaymentMethod {
   payment_method_id: string;
@@ -22,6 +23,8 @@ export const SavedCards: React.FC<SavedCardsProps> = ({ username, onRefresh }) =
   const [paymentMethods, setPaymentMethods] = React.useState<PaymentMethod[]>([]);
   const [defaultPaymentMethodId, setDefaultPaymentMethodId] = React.useState<string | null>(null);
   const [isUpdating, setIsUpdating] = React.useState(false);
+  const [lastTap, setLastTap] = React.useState<{ id: string; time: number } | null>(null);
+  const router = useRouter();
 
   // Add a refresh trigger
   const [refreshTrigger, setRefreshTrigger] = React.useState(0);
@@ -48,68 +51,78 @@ export const SavedCards: React.FC<SavedCardsProps> = ({ username, onRefresh }) =
     }
   }, [username]);
 
-  // Update useEffect to include refreshTrigger
   React.useEffect(() => {
     fetchPaymentMethods();
   }, [fetchPaymentMethods, refreshTrigger]);
 
-  // Update the parent's onRefresh to trigger our local refresh
   React.useEffect(() => {
     if (onRefresh) {
       const handleRefresh = () => {
         setRefreshTrigger(prev => prev + 1);
       };
-      // Subscribe to parent's refresh
       onRefresh.subscribe?.(handleRefresh);
       return () => {
-        // Cleanup subscription
         onRefresh.unsubscribe?.(handleRefresh);
       };
     }
   }, [onRefresh]);
 
-  const setDefaultCard = async (paymentMethodId: string) => {
-    try {
-      setIsUpdating(true); // Start loading state
-      
-      // Optimistically update the UI
-      setDefaultPaymentMethodId(paymentMethodId);
-
-      const userResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/${username}`);
-      const userData = await userResponse.json();
-      
-      if (!userData.success) {
-        console.error('Could not find user');
-        return;
-      }
-
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/payments/set-default`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: userData.user_id,
-          payment_method_id: paymentMethodId,
-        }),
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        if (onRefresh) {
-          onRefresh();
+  const handleCardPress = async (method: PaymentMethod) => {
+    const now = Date.now();
+    
+    if (lastTap && lastTap.id === method.payment_method_id && now - lastTap.time < 300) {
+      // Double tap detected - navigate to card details
+      router.push({
+        pathname: '/card-details',
+        params: {
+          brand: method.brand,
+          last4: method.last4
         }
-      } else {
-        // Revert the optimistic update if the request failed
-        await fetchPaymentMethods();
+      });
+    } else {
+      // Single tap - set as default
+      if (!isUpdating && method.payment_method_id !== defaultPaymentMethodId) {
+        try {
+          setIsUpdating(true);
+          setDefaultPaymentMethodId(method.payment_method_id);
+
+          const userResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/${username}`);
+          const userData = await userResponse.json();
+          
+          if (!userData.success) {
+            console.error('Could not find user');
+            return;
+          }
+
+          const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/payments/set-default`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              user_id: userData.user_id,
+              payment_method_id: method.payment_method_id,
+            }),
+          });
+
+          const data = await response.json();
+          if (data.success) {
+            if (onRefresh) {
+              onRefresh();
+            }
+          } else {
+            await fetchPaymentMethods();
+          }
+        } catch (error) {
+          console.error('Error setting default card:', error);
+          await fetchPaymentMethods();
+        } finally {
+          setIsUpdating(false);
+        }
       }
-    } catch (error) {
-      console.error('Error setting default card:', error);
-      // Revert the optimistic update if there was an error
-      await fetchPaymentMethods();
-    } finally {
-      setIsUpdating(false); // End loading state
     }
+    
+    setLastTap({ id: method.payment_method_id, time: now });
   };
 
   if (paymentMethods.length === 0) {
@@ -127,7 +140,7 @@ export const SavedCards: React.FC<SavedCardsProps> = ({ username, onRefresh }) =
             styles.cardItem,
             method.payment_method_id === defaultPaymentMethodId && styles.selectedCard
           ]}
-          onPress={() => setDefaultCard(method.payment_method_id)}
+          onPress={() => handleCardPress(method)}
           disabled={isUpdating}
         >
           <View style={styles.cardInfo}>
@@ -195,12 +208,6 @@ const styles = StyleSheet.create({
   cardNumber: {
     fontSize: 16,
     color: '#666',
-  },
-  selectedIndicator: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
   },
   selectedText: {
     color: '#007AFF',
