@@ -11,7 +11,7 @@ const LoginScreen: React.FC = () => {
   const handleLogin = async () => {
     try {
       setLoading(true);
-
+      console.log(process.env.EXPO_PUBLIC_API_URL);
       const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/login`, {
         method: 'POST',
         headers: {
