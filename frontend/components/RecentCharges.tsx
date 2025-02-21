@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/ui/Text';
+import { useRouter } from 'expo-router';
 
 interface Transaction {
   bus_route: string;
@@ -73,7 +74,22 @@ export const RecentCharges: React.FC<RecentChargesProps> = ({ username }) => {
     <View style={styles.container}>
       <Text style={styles.title}>Recent Rides</Text>
       {transactions.map((transaction, index) => (
-        <View key={index} style={styles.transactionItem}>
+        <TouchableOpacity
+          key={index}
+          style={styles.transactionItem}
+          onPress={() => {
+            router.push({
+              pathname: '/ride-details',
+              params: {
+                bus_route: transaction.bus_route,
+                timestamp: transaction.timestamp,
+                charge_amt: transaction.charge_amt,
+                payment_method: transaction.payment_method ? 
+                  JSON.stringify(transaction.payment_method) : null
+              }
+            });
+          }}
+        >
           <View style={styles.leftContent}>
             <Text style={styles.routeText}>Route {transaction.bus_route}</Text>
             <View style={styles.paymentInfo}>
@@ -86,7 +102,7 @@ export const RecentCharges: React.FC<RecentChargesProps> = ({ username }) => {
             </View>
           </View>
           <Text style={styles.amountText}>${transaction.charge_amt.toFixed(2)}</Text>
-        </View>
+        </TouchableOpacity>
       ))}
     </View>
   );
