@@ -11,7 +11,7 @@ import sys
 import requests
 import json
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.translink.utils.secrets import SecretsManager
 from app.translink.utils.parser import parse_gtfs_position_data
@@ -39,17 +39,18 @@ class TranslinkPositionFetcher:
         stream_key = f"translink:{tag}:stream"
         
         # Convert DataFrame to JSON
-        # data_json = json.dumps(df)
+        data_json = json.dumps(position_data)
+        current_time = datetime.now(timezone.utc).isoformat()
         
         # Store the current state
-        store_with_history(client, key, position_data)
+        store_with_history(client, key, data_json)
         
         # Add to stream with timestamp
         client.xadd(
             stream_key,
             {
-                'data': position_data,
-                'timestamp': datetime.now().isoformat()
+                'data': data_json,
+                'timestamp': current_time
             },
             maxlen=20,
             approximate= True   # Keep last 1000 entries

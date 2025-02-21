@@ -59,10 +59,8 @@ app = FastAPI(
 app.include_router(api_v1_router, prefix="/api/v1")
 
 limiter = Limiter(key_func=get_remote_address)
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
-
+# app.state.limiter = limiter
+# app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 # Mount the static directory
@@ -93,4 +91,10 @@ async def test_websocket(websocket: WebSocket):
         print(f"Error in test websocket: {str(e)}")
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run( app, 
+        host="0.0.0.0", 
+        port=8000,
+        reload=True,  # Enable auto-reload
+        reload_delay=1,  # Delay between reloads
+        workers=1  # Use single worker for WebSocket support)
+    )

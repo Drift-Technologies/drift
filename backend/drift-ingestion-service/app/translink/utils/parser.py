@@ -153,7 +153,7 @@ def parse_gtfs_position_data(response: bytes) -> pd.DataFrame:
             "timestamp": int(vehicle.timestamp) if vehicle.HasField("timestamp") else None,
             "stop_id": str(vehicle.stop_id) if vehicle.HasField("stop_id") else None,
             # "current_datetime": datetime.utcnow(),
-            "current_datetime": datetime.now(timezone.utc),
+            "current_datetime": datetime.now(timezone.utc).isoformat(),
             "h3_7": h3_7
         }
         rows.append(row)
