@@ -19,6 +19,7 @@ interface RecentChargesProps {
 
 export const RecentCharges: React.FC<RecentChargesProps> = ({ username }) => {
   const [transactions, setTransactions] = React.useState<Transaction[]>([]);
+  const router = useRouter();
 
   React.useEffect(() => {
     const fetchTransactions = async () => {
