@@ -1,10 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet, Alert, ScrollView, RefreshControl } from 'react-native';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { SavedCards } from '@/components/SavedCards';
 import { useParams } from '@/context/ParamsContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function WalletScreen() {
   const { username, user_id } = useParams();
@@ -13,6 +14,16 @@ export default function WalletScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [key, setKey] = useState(0);
   const [refreshSubscribers] = useState(() => new Set<() => void>());
+  const [showCardInput, setShowCardInput] = useState(false);
+
+  // Reset showCardInput when screen loses focus
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setShowCardInput(false);
+      };
+    }, [])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -140,26 +151,37 @@ export default function WalletScreen() {
         />
       }
     >
-      <View style={styles.card}>
-        <CardField
-          postalCodeEnabled={true}
-          placeholders={{
-            number: '4242 4242 4242 4242',
-          }}
-          cardStyle={styles.cardField}
-          style={styles.cardContainer}
-          onCardChange={(cardDetails) => {
-            setCardComplete(cardDetails.complete);
-          }}
-        />
-      </View>
-      <Button
-        onPress={handlePayPress}
-        disabled={!cardComplete}
-        style={styles.button}
-      >
-        Save Card
-      </Button>
+      {!showCardInput ? (
+        <Button
+          onPress={() => setShowCardInput(true)}
+          style={styles.button}
+        >
+          Add Payment Method
+        </Button>
+      ) : (
+        <>
+          <View style={styles.card}>
+            <CardField
+              postalCodeEnabled={true}
+              placeholders={{
+                number: '4242 4242 4242 4242',
+              }}
+              cardStyle={styles.cardField}
+              style={styles.cardContainer}
+              onCardChange={(cardDetails) => {
+                setCardComplete(cardDetails.complete);
+              }}
+            />
+          </View>
+          <Button
+            onPress={handlePayPress}
+            disabled={!cardComplete}
+            style={styles.button}
+          >
+            Save Card
+          </Button>
+        </>
+      )}
 
       <SavedCards username={username as string} onRefresh={onRefresh} />
     </ScrollView>
