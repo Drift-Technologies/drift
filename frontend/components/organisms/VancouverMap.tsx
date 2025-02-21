@@ -5,7 +5,7 @@ import * as Location from 'expo-location';
 import { MapStyles } from '../styles/VancouverMap.styles';
 import route_shapes from '@/assets/shapes.json';
 import BusIcon from '@/components/atoms/BusIcon';
-import { loadRouteData, calculateDistance } from '@/components/utils/route_utils';
+import { loadRouteData, calculateDistance, calculateBearing, flushBus } from '@/components/utils/route_utils';
 
 
 const VancouverMap: React.FC<{location: any; setLocation: any; busData:any; setBusData: any; closestRoutes: any; setClosestRoutes: any }> = ({
@@ -16,9 +16,15 @@ const VancouverMap: React.FC<{location: any; setLocation: any; busData:any; setB
   closestRoutes,
   setClosestRoutes,
 })  => {
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  
   const [routes, setRoutes] = useState<Record<number, Array<{ latitude: number; longitude: number; color: string }>> | null>(null);
+  const [busHistory, setBusHistory] = useState<Map<number, { latitude: number; longitude: number, bearing: number }>>(new Map());
+
   const shapeColorMap = new Map(); 
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+
 
 
   // Initial Region is UBC
@@ -61,40 +67,14 @@ const VancouverMap: React.FC<{location: any; setLocation: any; busData:any; setB
 
   // STREAM BUS DATA
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8080/ws/stream/buses?speed_multiplier=10.0');
+    const ws = new WebSocket('ws://localhost:8080/ws/stream/buses?speed_multiplier=10');
     
     // Create a Set to batch WebSocket messages
     const busLocations = new Map<number, { latitude: number; longitude: number }>();
     const data = new Set<string>();
 
     // Flush function to process batched messages
-    const flush = () => {
-      const newBusLocations = new Map(busLocations);
-      
-      for (const value of data) {
-        const parsedData = JSON.parse(value);
-        if (parsedData?.data) {
-          parsedData.data.forEach((bus: any) => {
-            newBusLocations.set(bus.route_id, {
-              latitude: bus.latitude,
-              longitude: bus.longitude,
-            });
-          });
-        }
-      }
-
-      const updatedBusPositions = Array.from(newBusLocations.entries()).map(([route_id, coords]) => ({
-        route_id,
-        ...coords,
-      }));
-
-      setBusData(updatedBusPositions); // Update state with complete list
-      busLocations.clear(); // Clear old locations
-      newBusLocations.forEach((value, key) => busLocations.set(key, value)); // Update busLocations
-      data.clear(); // Clear the batch
-    }
-    
-    let timer = setInterval(flush, 3000);
+    let timer = setInterval(() => flushBus(data, busLocations, busHistory, setBusData, setBusHistory), 3000);
 
     ws.onopen = () => {
       console.log('WebSocket connected');
@@ -112,11 +92,10 @@ const VancouverMap: React.FC<{location: any; setLocation: any; busData:any; setB
       console.error('WebSocket error:', error);
     };
 
-    // Cleanup on component unmount
-    return () => {
+    return () => { // Cleanup on component unmount
       clearInterval(timer);
       ws.close(); // Close the WebSocket connection
-      flush(); // Clear the data buffer
+      flushBus(data, busLocations, busHistory, setBusData, setBusHistory); // Clear the data buffer
     };
   }, []);
 
@@ -186,7 +165,10 @@ const VancouverMap: React.FC<{location: any; setLocation: any; busData:any; setB
             coordinate={{ latitude: bus.latitude, longitude: bus.longitude }}
             title={`Bus ID: ${bus.route_id}`}
           >
-            <BusIcon fillColor={routes[bus.route_id][0].color || 'black'} />
+            <BusIcon 
+              fillColor={routes[bus.route_id][0].color || 'black'} 
+              rotation={bus.bearing || 0}
+              />
           </Marker>
         ))}
       </MapView>
