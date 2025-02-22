@@ -72,3 +72,4 @@ cython_debug/
 .env
 .env.local
 .env.*
+backend/drift-ride-service/data/gtfs_static/stop_times.txt

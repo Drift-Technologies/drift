@@ -53,7 +53,7 @@ class TranslinkPositionFetcher:
                 'timestamp': current_time
             },
             maxlen=20,
-            approximate= True   # Keep last 1000 entries
+            approximate= True   # Keep last 20 entries
         )
 
     def run(self):
