@@ -38,7 +38,7 @@ async def bus_positions_websocket(websocket: WebSocket):
         return
 
     redis_client = get_redis_client()
-    stream_key = "translink:position:stream"
+    stream_key = "translink_enriched:position:stream"
     logger.info(f"Connected to Redis, stream key: {stream_key}")
 
     try:

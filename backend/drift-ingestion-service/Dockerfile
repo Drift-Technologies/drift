@@ -11,4 +11,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # COPY app/translink/ app/translink/
 # COPY main.py .
 
-CMD ["python", "main.py"]
+# CMD ["python", "main.py"]
+CMD ["watchfiles", "--filter-ignore=__pycache__", "python main.py"]

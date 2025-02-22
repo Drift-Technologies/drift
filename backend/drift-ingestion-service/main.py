@@ -1,6 +1,5 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.translink.get_position import get_position
-from app.translink.get_realtime import get_realtime
 import asyncio
 import redis
 
@@ -25,12 +24,8 @@ async def start_scheduler():
                      seconds=60,
                      id='fetch_position',
                      name='Fetch bus positions')
-    
-    # scheduler.add_job(get_realtime, 'interval', 
-    #                  seconds=60,
-    #                  id='fetch_realtime',
-    #                  name='Fetch realtime data')
-    
+
+
     scheduler.start()
     
     try:

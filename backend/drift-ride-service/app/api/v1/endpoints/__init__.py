@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints.trips import ride_detection, nearest_routes, bus_positions, routing_engine
+from app.api.v1.endpoints.trips import ride_detection, nearest_routes, bus_positions, route_engine
 
 router = APIRouter()
 
