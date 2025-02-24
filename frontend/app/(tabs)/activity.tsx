@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 
 export default function ActivityScreen() {
-  const { username } = useParams();
+  const { username, user_id } = useParams();
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
   const [key, setKey] = useState(0);
@@ -35,7 +35,10 @@ export default function ActivityScreen() {
         <Button
           style={styles.walletButton}
           textStyle={styles.buttonText}
-          onPress={() => router.push('/wallet')}
+          onPress={() => router.push({
+            pathname: '/wallet',
+            params: { username, user_id }
+          })}
         >
           <View style={styles.buttonContent}>
             <IconSymbol name="wallet.bifold.fill" size={24} color="#333" />
