@@ -69,6 +69,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   walletButton: {
+    marginTop: '5%',
     flex: 1,
     backgroundColor: '#F5F5F5',
     borderWidth: 1,

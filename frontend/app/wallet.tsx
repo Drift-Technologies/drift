@@ -156,16 +156,19 @@ export default function WalletScreen() {
       <View style={styles.buttonContainer}>
         <BackButton onPress={() => router.back()} />
       </View>
-
+      
+      
       {!showCardInput ? (
-        <Button
-          onPress={() => setShowCardInput(true)}
-          style={styles.button}
-        >
-          Add Payment Method
-        </Button>
+        <View style={styles.container}>
+          <Button
+            onPress={() => setShowCardInput(true)}
+            style={styles.button}
+          >
+            Add Payment Method
+          </Button>
+        </View>
       ) : (
-        <>
+        <View style={styles.container}>
           <View style={styles.card}>
             <CardField
               postalCodeEnabled={true}
@@ -186,7 +189,7 @@ export default function WalletScreen() {
           >
             Save Card
           </Button>
-        </>
+        </View>
       )}
 
       <SavedCards username={username as string} onRefresh={onRefresh} />
@@ -196,30 +199,33 @@ export default function WalletScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    padding: 20,
+    marginTop: 20,
+    padding: 16,
     backgroundColor: '#fff',
-    paddingTop: 60,
+    borderRadius: 8,
   },
   card: {
     backgroundColor: '#efefefef',
     borderRadius: 8,
     padding: 10,
     marginBottom: 20,
+    width: '100%', // Ensures the card wrapper spans full width
   },
   cardField: {
     backgroundColor: '#ffffff',
   },
   cardContainer: {
+    width: '100%', // Matches the ride history card width
     height: 50,
     marginVertical: 10,
   },
   button: {
+    width: '100%', // Matches the ride history card width
     marginBottom: 20,
   },
   buttonContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 20,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 8,
   },
 });
-
