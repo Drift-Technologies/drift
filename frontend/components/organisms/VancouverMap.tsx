@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View } from 'react-native';
-import MapView, { Marker, Polyline, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { View, Easing, Platform, Animated } from 'react-native';
+import MapView, { Marker, Polyline, Region, AnimatedRegion } from 'react-native-maps';
+
 import { MapStyles } from '../styles/VancouverMap.styles';
-import route_shapes from '@/assets/shapes.json';
 import BusIcon from '@/components/atoms/BusIcon';
 import { loadRouteData, calculateDistance, calculateBearing, flushBus } from '@/components/utils/route_utils';
-
 
 const VancouverMap: React.FC<{location: any; setLocation: any; busData:any; setBusData: any; closestRoutes: any; setClosestRoutes: any }> = ({
   location,
@@ -16,30 +15,19 @@ const VancouverMap: React.FC<{location: any; setLocation: any; busData:any; setB
   closestRoutes,
   setClosestRoutes,
 })  => {
-
   
   const [routes, setRoutes] = useState<Record<number, Array<{ latitude: number; longitude: number; color: string }>> | null>(null);
   const [busHistory, setBusHistory] = useState<Map<number, { latitude: number; longitude: number, bearing: number }>>(new Map());
+  const [animatedBusData, setAnimatedBusData] = useState<Map<number, AnimatedRegion>>(new Map());
 
   const shapeColorMap = new Map(); 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const markerRefs = useRef<Map<number, typeof Marker | null>>(new Map());
 
-
-
-
-  // Initial Region is UBC
-  const initialRegion: Region = {
-    latitude: 49.26077,
-    longitude: -123.24899,
-    latitudeDelta: 0.01,
-    longitudeDelta: 0.01,
-  };
-
-  // CALCULATE CLOSEST ROUTES
+  // ✅ Restored: CALCULATE CLOSEST ROUTES
   useEffect(() => {
     if (!location || !routes) return;
-  
-    // Calculate distances for all routes
+
     const sortedRoutes = Object.entries(routes)
       .map(([routeId, routeCoords]) => {
         const minDistance = Math.min(
@@ -50,66 +38,27 @@ const VancouverMap: React.FC<{location: any; setLocation: any; busData:any; setB
         return { routeId: parseInt(routeId, 10), distance: minDistance, color: routeCoords[0].color };
       })
       .sort((a, b) => a.distance - b.distance);
-  
-    // Use a Set to ensure uniqueness and extract only the closest two route IDs
+
     const uniqueRouteIds = new Set();
     const closestUniqueRoutes = sortedRoutes
       .filter((route) => {
-        if (uniqueRouteIds.has(route.routeId)) return false; // Skip duplicates
-        uniqueRouteIds.add(route); // Add unique route ID
+        if (uniqueRouteIds.has(route.routeId)) return false; 
+        uniqueRouteIds.add(route); 
         return true;
       })
-      .slice(0, 4); // Take the two closest unique routes
-  
+      .slice(0, 4);
+
     setClosestRoutes(closestUniqueRoutes.map((r) => r));
   }, [location, routes]);
 
-
-  // STREAM BUS DATA
-  useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8080/ws/stream/buses?speed_multiplier=10');
-    
-    // Create a Set to batch WebSocket messages
-    const busLocations = new Map<number, { latitude: number; longitude: number }>();
-    const data = new Set<string>();
-
-    // Flush function to process batched messages
-    let timer = setInterval(() => flushBus(data, busLocations, busHistory, setBusData, setBusHistory), 3000);
-
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-    };
-
-    ws.onmessage = (event) => {
-      data.add(event.data); // Add incoming messages to the Set
-    };
-
-    ws.onclose = () => {
-      console.log('WebSocket closed');
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-
-    return () => { // Cleanup on component unmount
-      clearInterval(timer);
-      ws.close(); // Close the WebSocket connection
-      flushBus(data, busLocations, busHistory, setBusData, setBusHistory); // Clear the data buffer
-    };
-  }, []);
-
-
-  // LOAD ROUTE DATA AND USER CURR LOCATION
+  // ✅ Restored: LOAD ROUTE DATA AND USER CURR LOCATION
   useEffect(() => {
     (async () => {
-      // Request location permissions
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setErrorMsg('Permission to access location was denied');
         return;
       }
-
 
       let currentLocation = await Location.getCurrentPositionAsync({});
       const hardcodedLocation = {
@@ -118,21 +67,100 @@ const VancouverMap: React.FC<{location: any; setLocation: any; busData:any; setB
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       };
-  
-      // setLocation(currentLocation.coords);
+
       setLocation(hardcodedLocation);
-      
       console.log(currentLocation);
       loadRouteData(shapeColorMap, setRoutes);
     })();
   }, []);
 
+  // STREAM BUS DATA (Animation Fixes Applied)
+  useEffect(() => {
+    const ws = new WebSocket('ws://localhost:8080/ws/stream/buses?speed_multiplier=10');
+  
+    const busLocations = new Map<number, { latitude: number; longitude: number }>();
+    const data = new Set<string>();
+  
+    let timer = setInterval(() => {
+      flushBus(data, busLocations, busHistory, (newBusData: any) => {
+        // console.log("in flush",newBusData)
+        setBusData(newBusData);
+  
+        setAnimatedBusData((prevBusData) => {
+          // console.log(animatedBusData)
+          const updatedData = new Map(prevBusData);
+  
+          newBusData.forEach((bus: any) => {
+            if (!updatedData.has(bus.route_id)) {
+              console.log("JHkjbn")
+              // First time seeing this bus → Create a new AnimatedRegion
+              updatedData.set(bus.route_id, new AnimatedRegion({
+                latitude: bus.latitude,
+                longitude: bus.longitude,
+              }));
+            } else {
+              const prevRegion = updatedData.get(bus.route_id)!;
+              
+              const distanceMoved = Math.abs(prevRegion.latitude._value - bus.latitude) + 
+                                   Math.abs(prevRegion.longitude._value - bus.longitude);
+              if (distanceMoved < 0.0001) return;
+
+              prevRegion.stopAnimation(() => {
+                prevRegion.timing({
+                  latitude: bus.latitude,
+                  longitude: bus.longitude,
+                  latitudeDelta: 0.001,
+                  longitudeDelta: 0.001,
+                  duration: 1000,
+                  useNativeDriver: false,
+                  easing: Easing.exp
+                }).start();
+              });
+
+              updatedData.set(bus.route_id, prevRegion);
+            }
+          });
+  
+          return new Map(updatedData);
+        });
+      }, setBusHistory);
+    }, 3000);
+  
+    ws.onopen = () => {
+      console.log('WebSocket connected');
+    };
+  
+    ws.onmessage = (event) => {
+      data.add(event.data);
+    };
+  
+    ws.onclose = () => {
+      console.log('WebSocket closed');
+    };
+  
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+  
+    return () => {
+      clearInterval(timer);
+      ws.close();
+      flushBus(data, busLocations, busHistory, setBusData, setBusHistory);
+    };
+  }, []);
+  
+  
 
   return (
     <View style={MapStyles.container}>
       <MapView 
         style={MapStyles.map} 
-        initialRegion={initialRegion}
+        initialRegion={{
+          latitude: 49.26077,
+          longitude: -123.24899,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }}
         showsMyLocationButton
         showsUserLocation
       >
@@ -145,10 +173,10 @@ const VancouverMap: React.FC<{location: any; setLocation: any; busData:any; setB
             title="You are here"
           />
         )}
+
         {routes &&
-          Object.keys(routes).map((routeId, index) => {
+          Object.keys(routes).map((routeId) => {
             const isClosest = closestRoutes.includes(parseInt(routeId));
-          
             return (
               <Polyline
                 key={routeId}
@@ -158,19 +186,21 @@ const VancouverMap: React.FC<{location: any; setLocation: any; busData:any; setB
               />
             );
           })}
+
         {routes && 
-        busData.map((bus: any, index: number) => (
-          <Marker
-            key={`bus-${bus.route_id}`}
-            coordinate={{ latitude: bus.latitude, longitude: bus.longitude }}
-            title={`Bus ID: ${bus.route_id}`}
-          >
-            <BusIcon 
-              fillColor={routes[bus.route_id][0].color || 'black'} 
-              rotation={bus.bearing || 0}
+          Array.from(animatedBusData.entries()).map(([route_id, animatedPosition]) => (
+            <Marker.Animated
+              key={`bus-${route_id}`}
+              ref={(marker) => markerRefs.current.set(route_id, marker)}
+              coordinate={animatedPosition}
+            >
+              <BusIcon 
+                fillColor={routes[route_id]?.[0]?.color || 'black'} 
+                rotation={0}
               />
-          </Marker>
-        ))}
+            </Marker.Animated>
+          ))
+        }
       </MapView>
     </View>
   );
