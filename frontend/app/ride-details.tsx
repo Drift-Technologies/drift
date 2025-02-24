@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text } from '@/components/ui/Text';
-import { useLocalSearchParams } from 'expo-router';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '@/components/ui/Button';
+import { BackButton } from '@/components/ui/BackButton';
 
 export default function RideDetailsScreen() {
   const { bus_route, timestamp, charge_amt, payment_method } = useLocalSearchParams();
@@ -23,12 +23,7 @@ export default function RideDetailsScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.buttonContainer}>
-        <Button
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          Back
-        </Button>
+        <BackButton onPress={() => router.back()} />
       </View>
       
       <View style={styles.content}>
