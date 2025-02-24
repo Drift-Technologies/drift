@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { RecentCharges } from '@/components/RecentCharges';
 import { useParams } from '@/context/ParamsContext';
 import { Button } from '@/components/ui/Button';
+import { IconSymbol } from '@/components/ui/IconSymbol';
 
 export default function PaymentScreen() {
   const { username } = useParams();
@@ -29,12 +30,20 @@ export default function PaymentScreen() {
         />
       }
     >
-      <Button
-        style={styles.walletButton}
-        onPress={() => router.push('/wallet')}
-      >
-        Wallet
-      </Button>
+      <View style={styles.buttonRow}>
+        <View style={styles.buttonPlaceholder} />
+        <Button
+          style={styles.walletButton}
+          textStyle={styles.buttonText}
+          onPress={() => router.push('/wallet')}
+        >
+          <View style={styles.buttonContent}>
+            <IconSymbol name="wallet.bifold.fill" size={24} color="#333" />
+            <Text style={styles.buttonText}>Wallet</Text>
+          </View>
+        </Button>
+        <View style={styles.buttonPlaceholder} />
+      </View>
       <RecentCharges key={`recent-charges-${key}`} username={username as string} />
     </ScrollView>
   );
@@ -47,8 +56,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     paddingTop: 60,
   },
-  walletButton: {
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
     marginBottom: 8,
-    width: '100%',
+  },
+  buttonPlaceholder: {
+    flex: 1,
+  },
+  walletButton: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  buttonContent: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 8,
+  },
+  buttonText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: '600',
   }
 });
