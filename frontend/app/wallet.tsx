@@ -4,11 +4,13 @@ import { CardField, useStripe } from '@stripe/stripe-react-native';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { SavedCards } from '@/components/SavedCards';
-import { useParams } from '@/context/ParamsContext';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import { BackButton } from '@/components/ui/BackButton';
 
 export default function WalletScreen() {
-  const { username, user_id } = useParams();
+  const router = useRouter();
+  const { username, user_id } = useLocalSearchParams();
   const { createToken, createPaymentMethod } = useStripe();
   const [cardComplete, setCardComplete] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -151,6 +153,10 @@ export default function WalletScreen() {
         />
       }
     >
+      <View style={styles.buttonContainer}>
+        <BackButton onPress={() => router.back()} />
+      </View>
+
       {!showCardInput ? (
         <Button
           onPress={() => setShowCardInput(true)}
@@ -209,6 +215,10 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   button: {
+    marginBottom: 20,
+  },
+  buttonContainer: {
+    paddingHorizontal: 16,
     marginBottom: 20,
   },
 });
