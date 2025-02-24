@@ -7,7 +7,7 @@ import { useParams } from '@/context/ParamsContext';
 import { Button } from '@/components/ui/Button';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 
-export default function PaymentScreen() {
+export default function ActivityScreen() {
   const { username } = useParams();
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);

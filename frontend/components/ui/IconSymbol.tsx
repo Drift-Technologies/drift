@@ -14,6 +14,7 @@ const MAPPING = {
   'chevron.left.forwardslash.chevron.right': 'code',
   'chevron.right': 'chevron-right',
   'wallet.bifold.fill': 'account-balance-wallet',
+  'text.page.fill': 'text-snippet',
 } as Partial<
   Record<
     import('expo-symbols').SymbolViewProps['name'],
