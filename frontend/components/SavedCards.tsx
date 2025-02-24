@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { useRouter } from 'expo-router';
 
 interface PaymentMethod {
   payment_method_id: string;
@@ -12,18 +13,24 @@ interface PaymentMethod {
 
 interface SavedCardsProps {
   username: string;
-  onRefresh?: () => void;
+  onRefresh?: {
+    subscribe?: (handler: () => void) => void;
+    unsubscribe?: (handler: () => void) => void;
+  };
 }
 
 export const SavedCards: React.FC<SavedCardsProps> = ({ username, onRefresh }) => {
   const [paymentMethods, setPaymentMethods] = React.useState<PaymentMethod[]>([]);
   const [defaultPaymentMethodId, setDefaultPaymentMethodId] = React.useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = React.useState(false);
-  const rotateAnim = React.useRef(new Animated.Value(0)).current;
+  const [isUpdating, setIsUpdating] = React.useState(false);
+  const [lastTap, setLastTap] = React.useState<{ id: string; time: number } | null>(null);
+  const router = useRouter();
+
+  // Add a refresh trigger
+  const [refreshTrigger, setRefreshTrigger] = React.useState(0);
 
   const fetchPaymentMethods = React.useCallback(async () => {
     try {
-      // First get user_id
       const userResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/${username}`);
       const userData = await userResponse.json();
       
@@ -32,7 +39,6 @@ export const SavedCards: React.FC<SavedCardsProps> = ({ username, onRefresh }) =
         return;
       }
 
-      // Then get payment methods
       const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/payments/methods/${userData.user_id}`);
       const data = await response.json();
       
@@ -47,97 +53,115 @@ export const SavedCards: React.FC<SavedCardsProps> = ({ username, onRefresh }) =
 
   React.useEffect(() => {
     fetchPaymentMethods();
-  }, [fetchPaymentMethods]);
+  }, [fetchPaymentMethods, refreshTrigger]);
 
   React.useEffect(() => {
-    Animated.timing(rotateAnim, {
-      toValue: isExpanded ? 1 : 0,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-  }, [isExpanded]);
+    if (onRefresh) {
+      const handleRefresh = () => {
+        setRefreshTrigger(prev => prev + 1);
+      };
+      onRefresh.subscribe?.(handleRefresh);
+      return () => {
+        onRefresh.unsubscribe?.(handleRefresh);
+      };
+    }
+  }, [onRefresh]);
 
-  const setDefaultCard = async (paymentMethodId: string) => {
-    try {
-      const userResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/${username}`);
-      const userData = await userResponse.json();
-      
-      if (!userData.success) {
-        console.error('Could not find user');
-        return;
-      }
-
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/payments/set-default`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: userData.user_id,
-          payment_method_id: paymentMethodId,
-        }),
+  const handleCardPress = async (method: PaymentMethod) => {
+    const now = Date.now();
+    
+    if (lastTap && lastTap.id === method.payment_method_id && now - lastTap.time < 300) {
+      // Double tap detected - navigate to card details
+      router.push({
+        pathname: '/card-details',
+        params: {
+          brand: method.brand,
+          last4: method.last4
+        }
       });
+    } else {
+      // Single tap - set as default
+      if (!isUpdating && method.payment_method_id !== defaultPaymentMethodId) {
+        try {
+          setIsUpdating(true);
+          setDefaultPaymentMethodId(method.payment_method_id);
 
-      const data = await response.json();
-      if (data.success) {
-        setDefaultPaymentMethodId(paymentMethodId);
-        setIsExpanded(false);
-        if (onRefresh) {
-          onRefresh();
+          const userResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/${username}`);
+          const userData = await userResponse.json();
+          
+          if (!userData.success) {
+            console.error('Could not find user');
+            return;
+          }
+
+          const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/payments/set-default`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              user_id: userData.user_id,
+              payment_method_id: method.payment_method_id,
+            }),
+          });
+
+          const data = await response.json();
+          if (data.success) {
+            if (onRefresh) {
+              onRefresh();
+            }
+          } else {
+            await fetchPaymentMethods();
+          }
+        } catch (error) {
+          console.error('Error setting default card:', error);
+          await fetchPaymentMethods();
+        } finally {
+          setIsUpdating(false);
         }
       }
-    } catch (error) {
-      console.error('Error setting default card:', error);
     }
+    
+    setLastTap({ id: method.payment_method_id, time: now });
   };
 
   if (paymentMethods.length === 0) {
     return null;
   }
 
-  const defaultCard = paymentMethods.find(method => method.payment_method_id === defaultPaymentMethodId);
-  const otherCards = paymentMethods.filter(method => method.payment_method_id !== defaultPaymentMethodId);
-
-  const spin = rotateAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '180deg'],
-  });
-
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Payment Method</Text>
+      <Text style={styles.title}>Payment Methods</Text>
       
-      {/* Default Card Header - Always visible */}
-      <TouchableOpacity 
-        style={styles.dropdownHeader}
-        onPress={() => setIsExpanded(!isExpanded)}
-      >
-        <View style={styles.cardInfo}>
-          <Text style={styles.cardBrand}>{defaultCard?.brand}</Text>
-          <Text style={styles.cardNumber}>•••• {defaultCard?.last4}</Text>
-        </View>
-        <Animated.View style={{ transform: [{ rotate: spin }] }}>
-          <IconSymbol name="chevron.down" size={20} color="#333" />
-        </Animated.View>
-      </TouchableOpacity>
-
-      {/* Other Cards - Visible when expanded */}
-      {isExpanded && (
-        <View style={styles.dropdownContent}>
-          {otherCards.map((method) => (
-            <TouchableOpacity
-              key={method.payment_method_id}
-              style={styles.cardItem}
-              onPress={() => setDefaultCard(method.payment_method_id)}
-            >
-              <View style={styles.cardInfo}>
-                <Text style={styles.cardBrand}>{method.brand}</Text>
-                <Text style={styles.cardNumber}>•••• {method.last4}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
+      {paymentMethods.map((method) => (
+        <TouchableOpacity
+          key={method.payment_method_id}
+          style={[
+            styles.cardItem,
+            method.payment_method_id === defaultPaymentMethodId && styles.selectedCard
+          ]}
+          onPress={() => handleCardPress(method)}
+          disabled={isUpdating}
+        >
+          <View style={styles.cardInfo}>
+            <Text style={[
+              styles.cardBrand,
+              method.payment_method_id === defaultPaymentMethodId && styles.selectedText
+            ]}>
+              {method.brand}
+            </Text>
+            <Text style={[
+              styles.cardNumber,
+              method.payment_method_id === defaultPaymentMethodId && styles.selectedText
+            ]}>
+              •••• {method.last4}
+            </Text>
+          </View>
+          {method.payment_method_id === defaultPaymentMethodId && (
+            <IconSymbol name="checkmark.circle.fill" size={20} color="#007AFF" />
+          )}
+        </TouchableOpacity>
+      ))}
     </View>
   );
 };
@@ -155,31 +179,20 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     color: '#333',
   },
-  dropdownHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-  },
-  dropdownContent: {
-    marginTop: 8,
-    borderRadius: 8,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
   cardItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
+    marginBottom: 8,
     backgroundColor: '#f8f9fa',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  selectedCard: {
+    borderColor: '#007AFF',
+    backgroundColor: '#f8f9fa',
   },
   cardInfo: {
     flexDirection: 'row',
@@ -190,9 +203,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginRight: 8,
     textTransform: 'capitalize',
+    color: '#333',
   },
   cardNumber: {
     fontSize: 16,
     color: '#666',
+  },
+  selectedText: {
+    color: '#007AFF',
+    fontWeight: '600',
   },
 }); 

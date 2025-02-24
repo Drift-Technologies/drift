@@ -10,7 +10,6 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useLocalSearchParams } from 'expo-router';
 import {ParamsProvider} from '@/context/ParamsContext'
 
-
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { username, user_id } = useLocalSearchParams();
@@ -25,7 +24,6 @@ export default function TabLayout() {
         tabBarBackground: TabBarBackground,
         tabBarStyle: Platform.select({
           ios: {
-            // Use a transparent background on iOS to show the blur effect
             position: 'absolute',
           },
           default: {},
@@ -39,10 +37,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="payment"
+        name="activity"
         options={{
-          title: 'Payment',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="creditcard.fill" color={color} />,
+          title: 'Activity',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="text.page.fill" color={color} />,
         }}
       />
     </Tabs>
