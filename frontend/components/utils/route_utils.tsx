@@ -115,32 +115,30 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
   export const flushBus = (
     data: any, 
     busLocations: any, 
-    busHistory: Map<number, { latitude: number; longitude: number, bearing: number}>, 
-    setBusData: any, 
-    setBusHistory: any
+    setBusData: any
   ) => {
     const newBusLocations = new Map(busLocations);
-    const newBusHistory = new Map(busHistory);
+    // const newBusHistory = new Map(busHistory);
   
     for (const value of data) {
       const parsedData = JSON.parse(value);
       if (parsedData?.data) {
         parsedData.data.forEach((bus: any) => {
-          const prevCoords = busHistory.get(bus.route_id);
+          // const prevCoords = busHistory.get(bus.route_id);
           const currCoords = { latitude: bus.latitude, longitude: bus.longitude, bearing: bus.bearing ? bus.bearing : 0 };
   
-          const prevbearing = prevCoords ? prevCoords.bearing : 0;
-          const bearing = prevCoords ? calculateBearing(prevCoords, currCoords) : prevbearing;
+          // const prevbearing = prevCoords ? prevCoords.bearing : 0;
+          // const bearing = prevCoords ? calculateBearing(prevCoords, currCoords) : prevbearing;
           
   
-          newBusLocations.set(bus.route_id, { ...currCoords, bearing: bearing });
-          newBusHistory.set(bus.route_id, currCoords);
+          newBusLocations.set(bus.route_id, { ...currCoords });
+          // newBusHistory.set(bus.route_id, currCoords);
         });
       }
     }
   
     setBusData(Array.from(newBusLocations.entries()).map(([route_id, coords]) => (typeof coords === 'object' ? { route_id, ...coords } : { route_id, coords })));
-    setBusHistory(newBusHistory);
+    // setBusHistory(newBusHistory);
   
     busLocations.clear();
     newBusLocations.forEach((value, key) => busLocations.set(key, value));
