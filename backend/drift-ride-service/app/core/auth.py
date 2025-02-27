@@ -12,6 +12,7 @@ class WebSocketAuthError(Exception):
 
 async def verify_api_key(x_api_key: str = Header(None)):
     """HTTP header-based API key verification."""
+    print(f"API_KEY: {API_KEY}")
     if x_api_key != API_KEY:
         raise HTTPException(status_code=403, detail="Invalid API key")
 
