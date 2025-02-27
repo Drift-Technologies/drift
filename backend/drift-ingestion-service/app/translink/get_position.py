@@ -166,8 +166,6 @@ class TranslinkPositionFetcher:
         enriched_data_json = json.dumps(enriched_positions)
         current_time = datetime.now(timezone.utc).isoformat()
         
-        logger.info(f"Writing {len(enriched_positions)} enriched positions to Redis")
-
         client.xadd(
             ENRICHED_STREAM,
             {
@@ -189,13 +187,9 @@ class TranslinkPositionFetcher:
         # Parse the raw data.
         position_data = parse_gtfs_position_data(raw_data)
         
-        logger.info(f"Writing {len(position_data)} positions to Redis")
-
         # Write raw data to Redis as source of truth.
         self.write_to_redis(position_data, "position")
         
-
-
         # Immediately enrich the latest raw message.
         self.enrich_latest_message()
 
