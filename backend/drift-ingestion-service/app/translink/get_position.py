@@ -14,7 +14,6 @@ import math
 import requests
 import pandas as pd
 from datetime import datetime, timezone
-import os
 
 from app.translink.utils.secrets import SecretsManager
 from app.translink.utils.parser import parse_gtfs_position_data
@@ -46,21 +45,8 @@ def calculate_bearing(lat1: float, lon1: float, lat2: float, lon2: float) -> flo
 
 class TranslinkPositionFetcher:
     def __init__(self, output_dir: str = "/tmp"):
-        # Get cloud provider from environment (default to 'local')
-        cloud_provider = os.getenv('CLOUD_PROVIDER', 'local')
-        
-        # Retrieve API key using SecretsManager
-        logger.info(f"Using cloud provider: {cloud_provider} for secrets")
-        self.secrets_manager = SecretsManager(cloud_provider=cloud_provider)
-        
-        # Get the Translink API key
-        translink_secret_name = os.getenv('TRANSLINK_SECRET_NAME', 'TRANSLINK_KEY')
-        self.api_key = self.secrets_manager.get_parameter(translink_secret_name)
-        
-        if not self.api_key:
-            logger.error(f"Failed to retrieve Translink API key using cloud provider: {cloud_provider}")
-            raise ValueError("Could not retrieve Translink API key")
-            
+        # Retrieve API key using SecretsManager.
+        self.api_key = SecretsManager(cloud_provider='local').get_parameter('TRANSLINK_KEY')
         self.position_url = f"https://gtfsapi.translink.ca/v3/gtfsposition?apikey={self.api_key}"
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
