@@ -62,9 +62,7 @@ const VancouverMap: React.FC<{
       let currentLocation = await Location.getCurrentPositionAsync({});
       const hardcodedLocation = {
         latitude: 49.26077,
-        longitude: -123.24899,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
+        longitude: -123.24899
       };
 
       setLocation(hardcodedLocation);
@@ -104,8 +102,6 @@ const VancouverMap: React.FC<{
                 region.timing({
                   latitude: bus.latitude,
                   longitude: bus.longitude,
-                  latitudeDelta: 0.001,
-                  longitudeDelta: 0.001,
                   duration: 2000,
                   useNativeDriver: false,
                   easing: Easing.bezier(0.42, 0, 0.58, 1),
