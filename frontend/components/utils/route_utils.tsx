@@ -74,18 +74,75 @@ export const flush = (
     data.clear();
   };
   
-  export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const toRad = (value: number) => (value * Math.PI) / 180;
-    const R = 6371; // Earth's radius in km
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(toRad(lat1)) *
-        Math.cos(toRad(lat2)) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c; // Distance in km
+export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const R = 6371; // Earth's radius in km
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c; // Distance in km
+};
+
+
+  // 20250221
+  export const calculateBearing = (prev: { latitude: number; longitude: number }, curr: { latitude: number; longitude: number }) => {
+    const toRadians = (deg: number) => (deg * Math.PI) / 180;
+    const toDegrees = (rad: number) => (rad * 180) / Math.PI;
+  
+    const lat1 = toRadians(prev.latitude);
+    const lat2 = toRadians(curr.latitude);
+    let dLon = toRadians(curr.longitude - prev.longitude);
+
+    const y = Math.sin(dLon) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+    let bearing = (toDegrees(Math.atan2(y, x)) + 360) % 360; // Normalize to [0,360]
+
+    // 🛠 Fix #2: Detect and correct flipped bearings
+    if (prev.longitude > curr.longitude) {
+        bearing = (bearing + 180) % 360; // Flip bearing if needed
+    }
+
+    return bearing;
+};
+
+
+  export const flushBus = (
+    data: any, 
+    busLocations: any, 
+    setBusData: any
+  ) => {
+    const newBusLocations = new Map(busLocations);
+    // const newBusHistory = new Map(busHistory);
+  
+    for (const value of data) {
+      const parsedData = JSON.parse(value);
+      if (parsedData?.data) {
+        parsedData.data.forEach((bus: any) => {
+          // const prevCoords = busHistory.get(bus.route_id);
+          const currCoords = { latitude: bus.latitude, longitude: bus.longitude, bearing: bus.bearing ? bus.bearing : 0 };
+  
+          // const prevbearing = prevCoords ? prevCoords.bearing : 0;
+          // const bearing = prevCoords ? calculateBearing(prevCoords, currCoords) : prevbearing;
+          
+  
+          newBusLocations.set(bus.route_id, { ...currCoords });
+          // newBusHistory.set(bus.route_id, currCoords);
+        });
+      }
+    }
+  
+    setBusData(Array.from(newBusLocations.entries()).map(([route_id, coords]) => (typeof coords === 'object' ? { route_id, ...coords } : { route_id, coords })));
+    // setBusHistory(newBusHistory);
+  
+    busLocations.clear();
+    newBusLocations.forEach((value, key) => busLocations.set(key, value));
+    data.clear();
   };
+
 
