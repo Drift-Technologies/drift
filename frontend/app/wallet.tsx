@@ -1,43 +1,55 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, StyleSheet, Alert, ScrollView, RefreshControl } from 'react-native';
 import { CardField, useStripe } from '@stripe/stripe-react-native';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
-import { useLocalSearchParams } from 'expo-router';
-import { RecentCharges } from '@/components/RecentCharges';
 import { SavedCards } from '@/components/SavedCards';
-import { useParams } from '@/context/ParamsContext';
-export default function PaymentScreen() {
-  const { username, user_id } = useParams();
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import { BackButton } from '@/components/ui/BackButton';
+
+export default function WalletScreen() {
+  const router = useRouter();
+  const { username, user_id } = useLocalSearchParams();
   const { createToken, createPaymentMethod } = useStripe();
   const [cardComplete, setCardComplete] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [key, setKey] = useState(0);
+  const [refreshSubscribers] = useState(() => new Set<() => void>());
+  const [showCardInput, setShowCardInput] = useState(false);
 
-  // Add this console.log to debug
-  console.log('Payment Screen Username:', username);
-  console.log('All params:', useLocalSearchParams());
+  // Reset showCardInput when screen loses focus
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setShowCardInput(false);
+      };
+    }, [])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    // Force re-render of both components by updating their keys
-    setKey(prevKey => prevKey + 1);
+    // Notify all subscribers
+    refreshSubscribers.forEach(subscriber => subscriber());
     setRefreshing(false);
-  }, []);
+  }, [refreshSubscribers]);
+
+  // Add subscribe/unsubscribe methods to onRefresh
+  onRefresh.subscribe = (callback: () => void) => {
+    refreshSubscribers.add(callback);
+  };
+
+  onRefresh.unsubscribe = (callback: () => void) => {
+    refreshSubscribers.delete(callback);
+  };
 
   const handlePayPress = async () => {
     try {
-      // Check if username exists
       if (!username) {
-        console.log('Username is undefined in payment screen');
         Alert.alert('Error', 'Username not found');
         return;
       }
 
-      console.log('Username:', username);
-      console.log('API URL:', `${process.env.EXPO_PUBLIC_API_URL}/users/${username}`);
-      
-      // Get user_id first
       const userResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/${username}`);
       const userData = await userResponse.json();
       
@@ -46,7 +58,6 @@ export default function PaymentScreen() {
         return;
       }
 
-      // Create payment method to get card details
       const { paymentMethod, error: paymentMethodError } = await createPaymentMethod({
         paymentMethodType: 'Card'
       });
@@ -61,7 +72,6 @@ export default function PaymentScreen() {
         return;
       }
 
-      // Check if card already exists
       const existingCardsResponse = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/payments/methods/${userData.user_id}`);
       const existingCardsData = await existingCardsResponse.json();
       
@@ -72,14 +82,10 @@ export default function PaymentScreen() {
           return;
         }
 
-        // At this point TypeScript knows both last4 and brand are defined
-        const last4 = cardDetails.last4;
-        const brand = cardDetails.brand;
-
         const isDuplicate = existingCardsData.payment_methods.some(
           (card: { last4: string; brand: string }) => 
-            card.last4 === last4 && 
-            card.brand.toLowerCase() === brand.toLowerCase()
+            card.last4 === cardDetails.last4 && 
+            card.brand.toLowerCase() === cardDetails.brand.toLowerCase()
         );
 
         if (isDuplicate) {
@@ -88,7 +94,6 @@ export default function PaymentScreen() {
         }
       }
 
-      // Create token for the backend
       const { token, error } = await createToken({ type: 'Card' });
       
       if (error) {
@@ -101,13 +106,6 @@ export default function PaymentScreen() {
         return;
       }
 
-      const cardDetails = paymentMethod.Card;
-      if (!cardDetails?.last4 || !cardDetails?.brand) {
-        Alert.alert('Error', 'Could not read card details');
-        return;
-      }
-
-      // Send token with user_id
       const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/payments/create-customer`, {
         method: 'POST',
         headers: {
@@ -117,8 +115,8 @@ export default function PaymentScreen() {
           token: token.id,
           user_id: userData.user_id,
           card_details: {
-            last4: cardDetails.last4,
-            brand: cardDetails.brand
+            last4: paymentMethod.Card?.last4,
+            brand: paymentMethod.Card?.brand
           }
         }),
       });
@@ -134,7 +132,6 @@ export default function PaymentScreen() {
       
       if (data.success) {
         Alert.alert('Success', 'Card saved successfully');
-        // Refresh the saved cards list
         onRefresh();
       } else {
         Alert.alert('Error', data.error || 'Something went wrong');
@@ -156,60 +153,79 @@ export default function PaymentScreen() {
         />
       }
     >
-      <View style={styles.card}>
-        <CardField
-          postalCodeEnabled={true}
-          placeholders={{
-            number: '4242 4242 4242 4242',
-          }}
-          cardStyle={styles.cardField}
-          style={styles.cardContainer}
-          onCardChange={(cardDetails) => {
-            setCardComplete(cardDetails.complete);
-          }}
-        />
+      <View style={styles.buttonContainer}>
+        <BackButton onPress={() => router.back()} />
       </View>
-      <Button
-        onPress={handlePayPress}
-        disabled={!cardComplete}
-        style={styles.button}
-      >
-        Save Card
-      </Button>
+      
+      
+      {!showCardInput ? (
+        <View style={styles.container}>
+          <Button
+            onPress={() => setShowCardInput(true)}
+            style={styles.button}
+          >
+            Add Payment Method
+          </Button>
+        </View>
+      ) : (
+        <View style={styles.container}>
+          <View style={styles.card}>
+            <CardField
+              postalCodeEnabled={true}
+              placeholders={{
+                number: '4242 4242 4242 4242',
+              }}
+              cardStyle={styles.cardField}
+              style={styles.cardContainer}
+              onCardChange={(cardDetails) => {
+                setCardComplete(cardDetails.complete);
+              }}
+            />
+          </View>
+          <Button
+            onPress={handlePayPress}
+            disabled={!cardComplete}
+            style={styles.button}
+          >
+            Save Card
+          </Button>
+        </View>
+      )}
 
-      <SavedCards key={`saved-cards-${key}`} username={username as string} onRefresh={onRefresh} />
-      <RecentCharges key={`recent-charges-${key}`} username={username as string} />
+      <SavedCards username={username as string} onRefresh={onRefresh} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    padding: 20,
+    marginTop: 20,
+    padding: 16,
     backgroundColor: '#fff',
-    paddingTop: 60,
-  },
-  header: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 30,
-    textAlign: 'center',
+    borderRadius: 8,
   },
   card: {
     backgroundColor: '#efefefef',
     borderRadius: 8,
     padding: 10,
     marginBottom: 20,
+    width: '100%', // Ensures the card wrapper spans full width
   },
   cardField: {
     backgroundColor: '#ffffff',
   },
   cardContainer: {
+    width: '100%', // Matches the ride history card width
     height: 50,
     marginVertical: 10,
   },
   button: {
+    width: '100%', // Matches the ride history card width
     marginBottom: 20,
   },
-}); 
+  buttonContainer: {
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+});
