@@ -1,79 +1,6 @@
 import route_shapes from '@/assets/shapes.json';
+import unique_routes from '@/assets/unique_routes.json';
 
-export const generateColorForShape = (shapeColorMap: Map<any, string>, shapeId: any): string => {
-    if (shapeColorMap.has(shapeId)) {
-        // Return the cached color for the shape
-        return shapeColorMap.get(shapeId)!; // Use non-null assertion
-    }
-
-    // Generate a new random color for the shape
-    const color = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
-
-    // Cache the color for this shape
-    shapeColorMap.set(shapeId, color);
-
-    return color;
-};
-
-export const loadRouteData = (shapeColorMap: any, setRoutes: any) => {
-    const groupedRoutes: Record<number, Array<{ latitude: number; longitude: number; color: string }>> = {};
-
-    route_shapes.forEach((shape) => {
-        const { shape_id, shape_pt_lat, shape_pt_lon } = shape;
-
-        if (!groupedRoutes[shape_id]) {
-            groupedRoutes[shape_id] = [];
-        }
-
-        groupedRoutes[shape_id].push({
-            latitude: shape_pt_lat,
-            longitude: shape_pt_lon,
-            color: generateColorForShape(shapeColorMap, shape_id),
-        });
-    });
-
-    setRoutes(groupedRoutes);
-    console.log(groupedRoutes[1]); // Debugging example
-    console.log('Routes Loaded');
-};
-
-export const flush = (
-    busLocations: Map<number, { latitude: number; longitude: number }>,
-    data: Set<string>,
-    setBusData: any
-  ) => {
-    const newBusLocations = new Map(busLocations);
-  
-    // Process each batched data item
-    for (const value of data) {
-      try {
-        const parsedData = JSON.parse(value);
-        if (parsedData?.data) {
-          parsedData.data.forEach((bus: any) => {
-            newBusLocations.set(bus.route_id, {
-              latitude: bus.latitude,
-              longitude: bus.longitude,
-            });
-          });
-        }
-      } catch (error) {
-        console.error('Error parsing WebSocket data:', error);
-      }
-    }
-  
-    const updatedBusPositions = Array.from(newBusLocations.entries()).map(([route_id, coords]) => ({
-      route_id,
-      ...coords,
-    }));
-  
-    setBusData(updatedBusPositions);
-  
-    // Clear old locations and batch data
-    busLocations.clear();
-    newBusLocations.forEach((value, key) => busLocations.set(key, value));
-    data.clear();
-  };
-  
 export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const toRad = (value: number) => (value * Math.PI) / 180;
   const R = 6371; // Earth's radius in km
@@ -89,30 +16,7 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
   return R * c; // Distance in km
 };
 
-
-  // 20250221
-  export const calculateBearing = (prev: { latitude: number; longitude: number }, curr: { latitude: number; longitude: number }) => {
-    const toRadians = (deg: number) => (deg * Math.PI) / 180;
-    const toDegrees = (rad: number) => (rad * 180) / Math.PI;
-  
-    const lat1 = toRadians(prev.latitude);
-    const lat2 = toRadians(curr.latitude);
-    let dLon = toRadians(curr.longitude - prev.longitude);
-
-    const y = Math.sin(dLon) * Math.cos(lat2);
-    const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
-    let bearing = (toDegrees(Math.atan2(y, x)) + 360) % 360; // Normalize to [0,360]
-
-    // 🛠 Fix #2: Detect and correct flipped bearings
-    if (prev.longitude > curr.longitude) {
-        bearing = (bearing + 180) % 360; // Flip bearing if needed
-    }
-
-    return bearing;
-};
-
-
-  export const flushBus = (
+export const flushBus = (
     data: any, 
     busLocations: any, 
     setBusData: any
@@ -143,6 +47,86 @@ export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2
     busLocations.clear();
     newBusLocations.forEach((value, key) => busLocations.set(key, value));
     data.clear();
-  };
+};
+
+export const fetchNearestRoutes = async (
+    location: any, 
+    API_URL: any, 
+    setRoutes: any, 
+    setError: any 
+  ) => {
+      try {
+        const response = await fetch(`${API_URL}?latitude=${location.latitude}&longitude=${location.longitude}`);
+        if (!response.ok) throw new Error("Failed to fetch routes");
+  
+        const data = await response.json();
+        const nearestRoutes = data.routes; // Extract the array of nearest routes
+  
+        // Call loadRouteData with filtering applied
+        loadRouteData(nearestRoutes, setRoutes);
+  
+      } catch (err) {
+        setError(err.message);
+      } 
+};
+  
+export const loadRouteData = (
+    nearestRoutes: Array<{ route_id: string, shape_id: number, color: string }>, 
+    setRoutes: any
+  ) => {
+      const groupedRoutes: Record<number, Array<{ route_id: string; latitude: number; longitude: number; color: string }>> = {};
+  
+      // Convert nearestRoutes to a Map for quick lookup {shape_id → { route_id, color }}
+      const nearestShapes = new Map(nearestRoutes.map(route => [route.shape_id, { route_id: route.route_id, color: route.color }]));
+  
+      // Iterate through route_shapes and only keep those in nearestRoutes
+      route_shapes.forEach((shape) => {
+          const { shape_id, shape_pt_lat, shape_pt_lon } = shape;
+  
+          if (!nearestShapes.has(shape_id)) return; 
+  
+          const { route_id, color } = nearestShapes.get(shape_id)!;
+  
+          if (!groupedRoutes[shape_id]) {
+              groupedRoutes[shape_id] = [];
+          }
+  
+          groupedRoutes[shape_id].push({
+              route_id,   
+              latitude: shape_pt_lat,
+              longitude: shape_pt_lon,
+              color,      
+          });
+      });
+  
+      setRoutes(groupedRoutes);
+      // console.log('Filtered Routes:', groupedRoutes); 
+};
+
+export const setupWebSocket = (ws: WebSocket, data: Set<any>) => {
+    ws.onmessage = (event) => {
+        data.add(event.data);
+        console.log(event.data)
+    };
+
+    ws.onclose = () => {
+        console.log('WebSocket closed');
+    };
+
+    ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+    };
+};
+
+// Function to get color from the state using route_id
+export const getColorFromRouteId = (routes: any, route_id: String) => {
+
+    const shapeID = unique_routes.shape_id[String(route_id)];
 
 
+    if (!routes || !routes[shapeID] || routes[shapeID].length === 0) {
+        return "#000000";
+    }
+
+    return routes[shapeID][0].color; 
+};
