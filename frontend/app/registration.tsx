@@ -22,7 +22,7 @@ const RegisterScreen: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/register`, {
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/users/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -44,6 +44,7 @@ const RegisterScreen: React.FC = () => {
       }
     } catch (error) {
       console.error('Registration error:', error);
+      console.log(username, email, password);
       Alert.alert('Error', 'Failed to register. Please try again.');
     } finally {
       setLoading(false);
