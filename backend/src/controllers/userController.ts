@@ -5,7 +5,7 @@ import bcrypt from 'bcrypt';
 
 const SALT_ROUNDS = 10;
 
-export const register = async (req: Request, res: Response) => {
+export const createUser = async (req: Request, res: Response) => {
   try {
     const { name, password } = req.body;
     
