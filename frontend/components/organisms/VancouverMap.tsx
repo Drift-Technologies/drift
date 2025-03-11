@@ -1,57 +1,32 @@
 import React, { useState, useEffect, useRef } from 'react';
-import * as Location from 'expo-location';
 import { View, Easing, Animated, Text } from 'react-native';
-import MapView, { Marker, Polyline, AnimatedRegion, Callout } from 'react-native-maps';
+import MapView, { Marker, AnimatedRegion, Callout } from 'react-native-maps';
+import * as Location from 'expo-location';
 
 import { MapStyles } from '../styles/VancouverMap.styles';
+import { getColorFromRouteId, setupWebSocket, fetchNearestRoutes, flushBus } from '@/components/utils/route_utils';
+import {renderPolyline} from '@/components/molecules/RoutePolyline';
 import BusIcon from '@/components/atoms/BusIcon';
-import { loadRouteData, calculateDistance, flushBus } from '@/components/utils/route_utils';
 
 const VancouverMap: React.FC<{
   location: any;
   setLocation: any;
-  busData: any;
-  setBusData: any;
-  closestRoutes: any;
-  setClosestRoutes: any;
-}> = ({ location, setLocation, busData, setBusData, closestRoutes, setClosestRoutes }) => {
+  animatedBusData: any;
+  setAnimatedBusData: any
 
-  const [routes, setRoutes] = useState<Record<number, Array<{ latitude: number; longitude: number; color: string }>> | null>(null);
-  const [animatedBusData, setAnimatedBusData] = useState<Map<number, AnimatedRegion>>(new Map());
+}> = ({ location, setLocation, animatedBusData, setAnimatedBusData }) => {
 
-  const shapeColorMap = new Map();
+  const [routes, setRoutes] = useState<Record<number, Array<{ shape_id: any; latitude: number; longitude: number; color: string }>> | null>(null);
+
+  const [busBearings, setBusBearings] = useState<Map<number, [number, String]>>(new Map());
+
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const markerRefs = useRef<Map<number, Marker | null>>(new Map());
 
-  // Calculate closest routes (logic remains unchanged)
+  // Load closest routes data and get user's current location
   useEffect(() => {
-    if (!location || !routes) return;
-
-    const sortedRoutes = Object.entries(routes)
-      .map(([routeId, routeCoords]) => {
-        const minDistance = Math.min(
-          ...routeCoords.map((point) =>
-            calculateDistance(location.latitude, location.longitude, point.latitude, point.longitude)
-          )
-        );
-        return { routeId: parseInt(routeId, 10), distance: minDistance, color: routeCoords[0].color };
-      })
-      .sort((a, b) => a.distance - b.distance);
-
-    const uniqueRouteIds = new Set<number>();
-    const closestUniqueRoutes = sortedRoutes
-      .filter((route) => {
-        if (uniqueRouteIds.has(route.routeId)) return false;
-        uniqueRouteIds.add(route.routeId);
-        return true;
-      })
-      .slice(0, 4);
-
-    setClosestRoutes(closestUniqueRoutes);
-  }, [location, routes]);
-
-  // Load route data and get user's current location
-  useEffect(() => {
+    const API_URL = "http://localhost:8000/api/v1/trips/nearest_routes?latitude=49.2827&longitude=-123.1207";
+    
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
@@ -60,43 +35,59 @@ const VancouverMap: React.FC<{
       }
 
       let currentLocation = await Location.getCurrentPositionAsync({});
-      const hardcodedLocation = {
-        latitude: 49.26077,
-        longitude: -123.24899
-      };
+      const hardcodedLocation = { latitude: 49.26077, longitude: -123.24899};
 
+      await fetchNearestRoutes(hardcodedLocation, API_URL, setRoutes, setErrorMsg)
       setLocation(hardcodedLocation);
+
+      // await fetchNearestRoutes(currentLocation, API_URL, setRoutes, setErrorMsg)
+      // setLocation(currentLocation);
       console.log(currentLocation);
-      loadRouteData(shapeColorMap, setRoutes);
     })();
   }, []);
 
   // Stream bus data – update only animated markers
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:8080/ws/stream/buses?speed_multiplier=10');
+    let ws = new WebSocket('ws://localhost:8000/api/v1/trips/bus_positions');
+
+    if (!ws || ws.readyState === WebSocket.CLOSED) {
+      ws = new WebSocket('ws://localhost:8000/api/v1/trips/bus_positions');
+    }
+
+    // const ws = new WebSocket('ws://localhost:9000/ws/stream/buses?speed_multiplier=10');
     const busLocations = new Map<number, { latitude: number; longitude: number }>();
     const data = new Set<string>();
 
+    ws.onopen = () => {
+      console.log("WebSocket connected");
+      
+    
+      const initialLocation = { latitude: 49.26077, longitude: -123.24899 };
+
+      ws.send(JSON.stringify(initialLocation));
+    };
+
     const timer = setInterval(() => {
       flushBus(data, busLocations, (newBusData: any) => {
-        // Remove setBusData to avoid triggering an extra (non-animated) marker elsewhere.
-        // setBusData(newBusData);
 
         setAnimatedBusData((prevAnimatedData) => {
           const updatedData = new Map(prevAnimatedData);
 
           newBusData.forEach((bus: any) => {
+            const { route_id, latitude, longitude, bearing, vehicle_label } = bus;
+
             // Use bus.route_id as the key (assumes one bus per route).
             if (!updatedData.has(bus.route_id)) {
               updatedData.set(
-                bus.route_id,
+                route_id,
                 new AnimatedRegion({
-                  latitude: bus.latitude,
-                  longitude: bus.longitude,
+                  latitude: latitude,
+                  longitude: longitude,
                 })
+                  
               );
             } else {
-              const region = updatedData.get(bus.route_id)!;
+              let region = updatedData.get(route_id)!;
              
               region.stopAnimation(() => {
                 region.timing({
@@ -113,24 +104,19 @@ const VancouverMap: React.FC<{
 
           return updatedData;
         });
+
+        setBusBearings((prevBearings) => {
+          const updatedBearings = new Map(prevBearings);
+          newBusData.forEach((bus: any) => {
+            updatedBearings.set(bus.route_id, bus.bearing);
+          });
+          return updatedBearings;
+        });
+
       });
     }, 3000);
 
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-    };
-
-    ws.onmessage = (event) => {
-      data.add(event.data);
-    };
-
-    ws.onclose = () => {
-      console.log('WebSocket closed');
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
+    setupWebSocket(ws, data);
 
     return () => {
       clearInterval(timer);
@@ -161,39 +147,40 @@ const VancouverMap: React.FC<{
           />
         )}
 
-        {routes &&
-          Object.keys(routes).map((routeId) => {
-            const isClosest = closestRoutes.some((r: any) => r.routeId === parseInt(routeId, 10));
-            return (
-              <Polyline
-                key={routeId}
-                coordinates={routes[parseInt(routeId, 10)]}
-                strokeColor={isClosest ? routes[parseInt(routeId, 10)][0].color : 'gray'}
-                strokeWidth={isClosest ? 6 : 2}
-              />
-            );
-          })}
+      {routes && 
+        Object.keys(routes).map((shapeIdStr) => 
+          renderPolyline(shapeIdStr, routes)
+        )
+      }   
 
       {routes &&
-        Array.from(animatedBusData.entries()).map(([route_id, animatedPosition]) => (
-          <Marker.Animated
-            key={`bus-${route_id}`}
-            ref={(marker) => markerRefs.current.set(route_id, marker)}
-            coordinate={
-              animatedPosition as unknown as Animated.WithAnimatedObject<{ latitude: number; longitude: number }>
-            }
-          >
-            <BusIcon fillColor={'black'} rotation={0} />
-            <Callout>
-              <View style={{ padding: 5 }}>
-                <Text>Route ID: {route_id}</Text>
-              </View>
-            </Callout>
-          </Marker.Animated>
-        ))}
+        Array.from(animatedBusData.entries()).map(([route_id, animatedPosition]) => {
+          const bearing = busBearings.get(route_id) ?? 0; // Get bearing, default to 0 if not found
+        
+          return (
+            <Marker.Animated
+              key={`bus-${route_id}`}
+              ref={(marker) => markerRefs.current.set(route_id, marker)}
+              coordinate={
+                animatedPosition as unknown as Animated.WithAnimatedObject<{ latitude: number; longitude: number }>
+              }
+            >
+              {/* Apply the extracted bearing */}
+              <BusIcon fillColor={getColorFromRouteId(routes, route_id)} rotation={bearing} />
+              <Callout>
+                <View style={{ padding: 5 }}>
+                  <Text>Route ID: {route_id}</Text>
+                </View>
+              </Callout>
+            </Marker.Animated>
+          );
+        })
+      }
       </MapView>
     </View>
   );
 };
 
 export default VancouverMap;
+
+
