@@ -1,5 +1,6 @@
 import route_shapes from '@/assets/shapes.json';
 import unique_routes from '@/assets/unique_routes.json';
+import busNames from '@/assets/bus_names.json';
 
 export const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const toRad = (value: number) => (value * Math.PI) / 180;
@@ -129,4 +130,12 @@ export const getColorFromRouteId = (routes: any, route_id: String) => {
     }
 
     return routes[shapeID][0].color; 
+};
+
+export const getTripHeadsign = (routeId: number): string => {
+  const shapeID = unique_routes.shape_id[String(routeId)];
+
+  const matchingBus = busNames.find((bus) => Number(bus.shape_id) === shapeID);
+
+  return matchingBus ? matchingBus.trip_headsign : 'Unknown';
 };
