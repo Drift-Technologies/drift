@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import MapView, { Marker, Polyline, AnimatedRegion, Callout } from 'react-native-maps';
+import React from 'react';
+import { Polyline } from 'react-native-maps';
 
 export const renderPolyline = (shapeIdStr: string, routes: any) => {
     const shapeId = parseInt(shapeIdStr, 10);
@@ -10,7 +10,8 @@ export const renderPolyline = (shapeIdStr: string, routes: any) => {
     // Extract route details from the first point
     const routeId = routePoints[0].route_id;
     const routeColor = routePoints[0].color;
-  
+    // console.log("Rendering polyline for shapeId:", shapeIdStr);
+
     return (
         <Polyline
             key={shapeId} // Use shape_id as key
