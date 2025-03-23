@@ -2,11 +2,25 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Easing, Animated, Text } from 'react-native';
 import MapView, { Marker, AnimatedRegion, Callout } from 'react-native-maps';
 import * as Location from 'expo-location';
-
 import { MapStyles } from '../styles/VancouverMap.styles';
-import { getColorFromRouteId, setupWebSocket, fetchNearestRoutes, flushBus } from '@/components/utils/route_utils';
-import {renderPolyline} from '@/components/molecules/RoutePolyline';
+
+import { 
+  get_shape_id_from_route_id,
+  get_color_from_route_id, 
+  get_trip_head_sign,
+  calculate_bearing,
+  fetchNearestRoutes,
+  find_closest_route_points,
+  setup_web_socket, 
+  flushBus
+} from '@/components/utils/route_utils';
+
+import { renderPolyline } from '@/components/molecules/RoutePolyline';
+import BusCallout from '@/components/atoms/BusCallout';
 import BusIcon from '@/components/atoms/BusIcon';
+import SimpleBusIcon from '@/components/atoms/SimpleBusIcon';
+
+
 
 const VancouverMap: React.FC<{
   location: any;
@@ -17,13 +31,10 @@ const VancouverMap: React.FC<{
 }> = ({ location, setLocation, animatedBusData, setAnimatedBusData }) => {
 
   const [routes, setRoutes] = useState<Record<number, Array<{ shape_id: any; latitude: number; longitude: number; color: string }>> | null>(null);
-
-  const [busBearings, setBusBearings] = useState<Map<number, [number, String]>>(new Map());
-
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const markerRefs = useRef<Map<number, Marker | null>>(new Map());
 
-  // Load closest routes data and get user's current location
+  // LOAD CLOSEST ROUTES AND GET THE USER"S CURRENT LOCATION
   useEffect(() => {
     const API_URL = "http://localhost:8000/api/v1/trips/nearest_routes?latitude=49.2827&longitude=-123.1207";
     
@@ -39,8 +50,6 @@ const VancouverMap: React.FC<{
 
       await fetchNearestRoutes(hardcodedLocation, API_URL, setRoutes, setErrorMsg)
       setLocation(hardcodedLocation);
-
-      // await fetchNearestRoutes(currentLocation, API_URL, setRoutes, setErrorMsg)
       // setLocation(currentLocation);
       console.log(currentLocation);
     })();
@@ -54,29 +63,24 @@ const VancouverMap: React.FC<{
       ws = new WebSocket('ws://localhost:8000/api/v1/trips/bus_positions');
     }
 
-    // const ws = new WebSocket('ws://localhost:9000/ws/stream/buses?speed_multiplier=10');
     const busLocations = new Map<number, { latitude: number; longitude: number }>();
     const data = new Set<string>();
 
     ws.onopen = () => {
       console.log("WebSocket connected");
-      
-    
       const initialLocation = { latitude: 49.26077, longitude: -123.24899 };
-
       ws.send(JSON.stringify(initialLocation));
     };
 
     const timer = setInterval(() => {
       flushBus(data, busLocations, (newBusData: any) => {
 
-        setAnimatedBusData((prevAnimatedData) => {
+        setAnimatedBusData((prevAnimatedData: any) => {
           const updatedData = new Map(prevAnimatedData);
 
           newBusData.forEach((bus: any) => {
             const { route_id, latitude, longitude, bearing, vehicle_label } = bus;
 
-            // Use bus.route_id as the key (assumes one bus per route).
             if (!updatedData.has(bus.route_id)) {
               updatedData.set(
                 route_id,
@@ -101,22 +105,13 @@ const VancouverMap: React.FC<{
               updatedData.set(bus.route_id, region);
             }
           });
-
           return updatedData;
-        });
-
-        setBusBearings((prevBearings) => {
-          const updatedBearings = new Map(prevBearings);
-          newBusData.forEach((bus: any) => {
-            updatedBearings.set(bus.route_id, bus.bearing);
-          });
-          return updatedBearings;
         });
 
       });
     }, 3000);
 
-    setupWebSocket(ws, data);
+    setup_web_socket(ws, data);
 
     return () => {
       clearInterval(timer);
@@ -124,6 +119,7 @@ const VancouverMap: React.FC<{
     };
   }, []);
 
+  
   return (
     <View style={MapStyles.container}>
       <MapView
@@ -155,23 +151,41 @@ const VancouverMap: React.FC<{
 
       {routes &&
         Array.from(animatedBusData.entries()).map(([route_id, animatedPosition]) => {
-          const bearing = busBearings.get(route_id) ?? 0; // Get bearing, default to 0 if not found
-        
+  
+          let shapeID = get_shape_id_from_route_id(route_id);
+          const bus_coordinates = animatedPosition as unknown as Animated.WithAnimatedObject<{ latitude: number; longitude: number }>
+          const trip_headsign = get_trip_head_sign(route_id);
+          const shapePoints = routes?.[shapeID];
+
+          let bearing = 0;
+          const busCoordinates = animatedPosition as unknown as {
+            latitude: number;
+            longitude: number;
+          };
+      
+          const { latitude, longitude } = busCoordinates;
+          if (shapePoints && shapePoints.length >= 2) {
+            const [i1, i2] = find_closest_route_points(shapePoints, {latitude, longitude});
+            bearing = calculate_bearing(shapePoints[i1], shapePoints[i2]);
+          }         
+
           return (
             <Marker.Animated
               key={`bus-${route_id}`}
               ref={(marker) => markerRefs.current.set(route_id, marker)}
-              coordinate={
-                animatedPosition as unknown as Animated.WithAnimatedObject<{ latitude: number; longitude: number }>
-              }
+              coordinate={bus_coordinates}
             >
               {/* Apply the extracted bearing */}
-              <BusIcon fillColor={getColorFromRouteId(routes, route_id)} rotation={bearing} />
-              <Callout>
-                <View style={{ padding: 5 }}>
-                  <Text>Route ID: {route_id}</Text>
-                </View>
-              </Callout>
+              {/* <BusIcon fillColor={get_color_from_route_id(route_id)} rotation={bearing} /> */}
+              <SimpleBusIcon fillColor={get_color_from_route_id(route_id)} rotation={bearing} />
+              
+              {/* <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: get_color_from_route_id(route_id), borderWidth: 2, borderColor: 'white' }} /> */}
+              <BusCallout 
+                route_id={route_id}
+                shape_id={String(shapeID)}
+                trip_headsign={trip_headsign}
+              />
+
             </Marker.Animated>
           );
         })
