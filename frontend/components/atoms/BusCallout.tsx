@@ -22,7 +22,6 @@ const BusCallout: React.FC<BusCalloutProps> = ({
         <Text style={styles.title}>🚌 {trip_headsign || 'N/A'}</Text>
         <Text style={styles.text}>🛣️ Route: {route_id || 'N/A'}</Text>
         <Text style={styles.text}>🆔 Shape ID: {shape_id  || 'N/A'}</Text>
-        📍
         <Text style={styles.text}>
           🎨 Color: <Text style={[styles.colorText, { color }]}>{color}</Text>
         </Text>
