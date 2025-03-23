@@ -55,6 +55,7 @@ const VancouverMap: React.FC<{
     })();
   }, []);
 
+
   // Stream bus data – update only animated markers
   useEffect(() => {
     let ws = new WebSocket('ws://localhost:8000/api/v1/trips/bus_positions');
@@ -120,6 +121,44 @@ const VancouverMap: React.FC<{
   }, []);
 
   
+  useEffect(() => {
+    let recording: { latitude: number; longitude: number; timestamp: string }[] = [];
+  
+    const collectInterval = setInterval(async () => {
+      try {
+        const { coords } = await Location.getCurrentPositionAsync({});
+        const timestamp = new Date().toLocaleTimeString();
+  
+        recording.push({
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+          timestamp,
+        });
+  
+        console.log(`🟢 [${timestamp}] Collected: ${coords.latitude}, ${coords.longitude}`);
+      } catch (err) {
+        console.warn("⚠️ Failed to get location:", err);
+      }
+    }, 5000); // Every 5 seconds
+  
+    const printInterval = setInterval(() => {
+      if (recording.length === 0) return;
+  
+      console.log("📍 Location log for the last 30 seconds:");
+      recording.forEach((loc, i) => {
+        console.log(`  ${loc.timestamp} (${i * 5}s): Lat: ${loc.latitude}, Lon: ${loc.longitude}`);
+      });
+  
+      recording = []; // Clear after printing
+    }, 30000); // Every 30 seconds
+  
+    return () => {
+      clearInterval(collectInterval);
+      clearInterval(printInterval);
+    };
+  }, []);
+  
+
   return (
     <View style={MapStyles.container}>
       <MapView
