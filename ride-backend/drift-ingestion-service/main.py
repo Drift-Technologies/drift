@@ -21,7 +21,7 @@ async def start_scheduler():
     
     # Schedule your fetch jobs
     scheduler.add_job(get_position, 'interval', 
-                     seconds=10,
+                     seconds=30,
                      id='fetch_position',
                      name='Fetch bus positions')
 

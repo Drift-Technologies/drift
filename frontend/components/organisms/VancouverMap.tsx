@@ -20,14 +20,11 @@ import BusCallout from '@/components/atoms/BusCallout';
 import BusIcon from '@/components/atoms/BusIcon';
 import SimpleBusIcon from '@/components/atoms/SimpleBusIcon';
 
-
-
 const VancouverMap: React.FC<{
   location: any;
   setLocation: any;
   animatedBusData: any;
   setAnimatedBusData: any
-
 }> = ({ location, setLocation, animatedBusData, setAnimatedBusData }) => {
 
   const [routes, setRoutes] = useState<Record<number, Array<{ shape_id: any; latitude: number; longitude: number; color: string }>> | null>(null);
