@@ -93,6 +93,9 @@ This project was created for nwHacks 2025 at the University of British Columbia.
 #### 🖥️ Backend
 - **Node.js**: API for user authentication, trip history, and payment handling.
 - **Render**: Deployment platform for backend services.
+- **Redis** Backend Cache
+- **FastAPI** Backend Ride Serivce
+![backend_design drawio](https://github.com/user-attachments/assets/dd474e9d-2f87-488d-a9bb-1098f83eff19)
 
 #### 🌐 Simulated Data Services
 - **FastAPI**: Lightweight Python framework for creating WebSocket services.
