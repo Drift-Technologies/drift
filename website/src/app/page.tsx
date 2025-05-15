@@ -2,8 +2,16 @@ import Image from "next/image";
 
 export default function Home() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-[#E0E0E0] text-[#333333] p-8 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col items-center gap-8 text-center">
+    <div className="flex flex-col items-center min-h-screen bg-[#E0E0E0] text-[#333333] px-8 pt-8 font-[family-name:var(--font-geist-sans)]">
+      <Image
+        src="/drift_logo.png"
+        alt="Drift Logo"
+        width={250}
+        height={60}
+        priority
+        className="mb-2"
+      />
+      <main className="flex flex-col items-center flex-grow gap-8 text-center pb-8">
         <h1 className="text-5xl font-bold">Landing Soon</h1>
         <p className="max-w-md text-lg">
           We will be launching Drift very soon. Add your email
