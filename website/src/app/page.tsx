@@ -32,6 +32,10 @@ export default function Home() {
           </button>
         </form>
       </main>
+      <footer className="w-full text-center py-4">
+        <p className="text-xs text-[#555555]">Drift Technologies</p>
+        <p className="text-xs text-[#555555]">2025</p>
+      </footer>
     </div>
   );
 }
