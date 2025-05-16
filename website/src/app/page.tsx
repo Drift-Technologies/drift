@@ -6,15 +6,15 @@ export default function Home() {
       <Image
         src="/drift_logo.png"
         alt="Drift Logo"
-        width={250}
-        height={60}
+        width={300}
+        height={75}
         priority
         className="mb-2"
       />
       <main className="flex flex-col items-center flex-grow gap-8 text-center pb-8">
-        <h1 className="text-5xl font-bold">Landing Soon</h1>
+        <h1 className="text-5xl font-bold">Arriving Soon</h1>
         <p className="max-w-md text-lg">
-          We will be launching Drift very soon. Add your email
+          We will be launching Drift, the future of transit payments, very soon. Add your email
           below and be among the first to know when we officially launch.
         </p>
         <form className="flex w-full max-w-sm">
